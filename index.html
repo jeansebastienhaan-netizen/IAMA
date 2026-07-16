@@ -91,9 +91,22 @@
   .actBtn .lb { position:relative; z-index:2; font-size:2.1vw; margin-top:1px; }
   .actBtn.locked { filter:grayscale(.9); opacity:.32; }
   #abBtn  { bottom:52px; width:78px; height:78px; background:radial-gradient(circle at 35% 30%,#9575cd,#4527a0); }
-  #wallBtn{ bottom:146px; width:60px; height:60px; right:25px; background:radial-gradient(circle at 35% 30%,#bcaaa4,#5d4037); }
+  #shopBtn{ bottom:146px; width:60px; height:60px; right:25px; background:radial-gradient(circle at 35% 30%,#ffcc80,#e65100); }
   #momBtn { bottom:222px; width:60px; height:60px; right:25px; background:radial-gradient(circle at 35% 30%,#f48fb1,#ad1457); }
   #hint { position:absolute; left:12px; bottom:12px; font-size:3vw; color:rgba(255,255,255,.5); pointer-events:none; }
+
+  /* ---------- Boutique ---------- */
+  #shop { position:absolute; right:14px; bottom:120px; width:240px; background:rgba(6,12,24,.88); border:2px solid #3a4a66;
+          border-radius:14px; padding:10px; pointer-events:auto; z-index:30; }
+  .shop-head { display:flex; justify-content:space-between; align-items:center; font-weight:bold; margin-bottom:6px; font-size:15px; }
+  .shop-head .sx { background:none; border:none; color:#9fb0cc; font-size:18px; padding:2px 8px; cursor:pointer; }
+  .shop-item { display:flex; gap:8px; align-items:center; background:#152238; border-radius:9px; padding:8px; margin:5px 0; cursor:pointer; }
+  .shop-item:active{ background:#2c4a7c; }
+  .shop-item.locked{ opacity:.35; pointer-events:none; }
+  .shop-item .se{ font-size:22px; flex:0 0 auto; }
+  .shop-item .sn{ font-size:13px; font-weight:bold; text-align:left; }
+  .shop-item .sd{ font-size:10px; color:#9fb0cc; text-align:left; }
+  .shop-item .sc{ margin-left:auto; font-weight:bold; color:#ffd54f; font-size:13px; flex:0 0 auto; }
 
   @media (min-width:820px){
     h1{font-size:64px} h1 .sub{font-size:24px} p.tag{font-size:20px} .btn{font-size:22px} input.field{font-size:24px}
@@ -130,9 +143,17 @@
   <div id="joyBase"></div>
   <div id="joyKnob"></div>
   <div class="actBtn" id="momBtn"><span class="ic">👩‍🍳</span><span class="lb">MAMAN 30🪙</span><div class="cd" id="momCd"></div></div>
-  <div class="actBtn" id="wallBtn"><span class="ic">🧱</span><span class="lb">MUR 5🪙</span><div class="cd" id="wallCd"></div></div>
+  <div class="actBtn" id="shopBtn"><span class="ic">🛒</span><span class="lb">BOUTIQUE</span></div>
   <div class="actBtn" id="abBtn"><span class="ic" id="abIc">✨</span><span class="lb" id="abLb">CAPACITÉ</span><div class="cd" id="abCd"></div></div>
   <div id="hint">Joystick = bouger · L'attaque est automatique !</div>
+  <div id="shop" class="hidden">
+    <div class="shop-head"><span>🛒 Boutique</span><span id="shopCoins">🪙 0</span><button class="sx" id="shopClose">✖</button></div>
+    <div class="shop-item" data-key="wall" data-cost="5"><span class="se">🧱</span><span><div class="sn">Mur</div><div class="sd">Bloque les monstres devant toi</div></span><span class="sc">5🪙</span></div>
+    <div class="shop-item" data-key="rampart" data-cost="15"><span class="se">🏰</span><span><div class="sn">Muraille</div><div class="sd">Longue et 3x plus solide</div></span><span class="sc">15🪙</span></div>
+    <div class="shop-item" data-key="tower" data-cost="25"><span class="se">🗼</span><span><div class="sn">Tour de garde</div><div class="sd">Tire toute seule, pour toujours (max 2)</div></span><span class="sc">25🪙</span></div>
+    <div class="shop-item" data-key="trap" data-cost="8"><span class="se">💣</span><span><div class="sn">Piège TNT</div><div class="sd">Explose au passage d'un monstre</div></span><span class="sc">8🪙</span></div>
+    <div class="shop-item" data-key="heal" data-cost="20"><span class="se">💛</span><span><div class="sn">Câlin pour Agapos</div><div class="sd">Lui redonne 60 points de vie</div></span><span class="sc">20🪙</span></div>
+  </div>
 </div>
 
 <!-- ===== ÉCRAN : Menu ===== -->
@@ -218,8 +239,16 @@ const NET_HZ = 20;
 const PLAYER_SPEED = 7.2;
 const BASE_MAXHP = 200;
 const RESPAWN_TIME = 6;
-const WALL_COST = 5, WALL_HP = 40, WALL_MAX = 10, WALL_CD = 1.2;
+const WALL_HP = 40, RAMPART_HP = 120, STRUCT_MAX = 12, BUILD_CD = 0.8;
 const MOM_COST = 30;
+/* Boutique de survie 🛒 */
+const SHOP = {
+  wall:    { cost:5,  can:s=>s.walls.length<STRUCT_MAX },
+  rampart: { cost:15, can:s=>s.walls.length<STRUCT_MAX },
+  tower:   { cost:25, can:s=>s.turrets.filter(t=>t.perm).length<2 },
+  trap:    { cost:8,  can:s=>s.traps.length<6 },
+  heal:    { cost:20, can:s=>s.baseHp<BASE_MAXHP },
+};
 
 /* ----- Les 3 héros ----- */
 const CHARS = {
@@ -261,12 +290,12 @@ let ROLE=null, myName='', myId=null, myChar=null;
 let peer=null, hostConn=null; const conns={};
 let roomCode='';
 let snap=null;
-const input={ mx:0, mz:0, ab:false, wall:false, mom:false };
+const input={ mx:0, mz:0, ab:false, buy:null, mom:false };
 let sim=null, running=false, lastNet=0;
 
 /* ===================== THREE.JS ===================== */
 let renderer, scene, camera;
-const meshes = { players:{}, enemies:{}, arrows:{}, walls:{}, turrets:{} };
+const meshes = { players:{}, enemies:{}, arrows:{}, walls:{}, turrets:{}, traps:{} };
 let agaposMesh=null, mamanMesh=null;
 
 function initThree() {
@@ -596,17 +625,51 @@ function makeProjMesh(kind){
   }
   return new THREE.Mesh(new THREE.BoxGeometry(0.12,0.12,0.8), new THREE.MeshLambertMaterial({color:0xe8d8a0}));
 }
-function makeWallMesh(){
+function makeStoneTex(dark){
   const c=document.createElement('canvas'); c.width=c.height=32;
   const g2=c.getContext('2d');
-  g2.fillStyle='#8d8d8d'; g2.fillRect(0,0,32,32);
-  for(let i=0;i<40;i++){ g2.fillStyle=(i%2)?'#7a7a7a':'#9e9e9e'; g2.fillRect((i*11)%32,(i*7)%32,5,4); }
-  const tex=new THREE.CanvasTexture(c); tex.magFilter=THREE.NearestFilter;
-  const m=new THREE.Mesh(new THREE.BoxGeometry(3.0,1.8,0.6), new THREE.MeshLambertMaterial({map:tex}));
-  return m;
+  g2.fillStyle=dark?'#6f6f6f':'#8d8d8d'; g2.fillRect(0,0,32,32);
+  for(let i=0;i<40;i++){ g2.fillStyle=(i%2)?(dark?'#5e5e5e':'#7a7a7a'):(dark?'#7d7d7d':'#9e9e9e'); g2.fillRect((i*11)%32,(i*7)%32,5,4); }
+  const tex=new THREE.CanvasTexture(c); tex.magFilter=THREE.NearestFilter; return tex;
 }
-function makeTurretMesh(){
+function makeWallMesh(type){
+  if(type===1){ // muraille 🏰 avec créneaux
+    const g=new THREE.Group();
+    const mat=new THREE.MeshLambertMaterial({map:makeStoneTex(true)});
+    const body=new THREE.Mesh(new THREE.BoxGeometry(4.8,2.3,0.9), mat);
+    g.add(body);
+    for(const dx of [-1.8,-0.6,0.6,1.8]){
+      const cr=new THREE.Mesh(new THREE.BoxGeometry(0.6,0.5,0.9), mat);
+      cr.position.set(dx,1.4,0); g.add(cr);
+    }
+    return g;
+  }
+  return new THREE.Mesh(new THREE.BoxGeometry(3.0,1.8,0.6), new THREE.MeshLambertMaterial({map:makeStoneTex(false)}));
+}
+function makeTrapMesh(){
   const g=new THREE.Group();
+  const b=new THREE.Mesh(new THREE.BoxGeometry(0.7,0.3,0.7), new THREE.MeshLambertMaterial({color:0xc62828}));
+  b.position.y=0.15; g.add(b);
+  const s=new THREE.Mesh(new THREE.BoxGeometry(0.72,0.12,0.25), new THREE.MeshLambertMaterial({color:0xffffff}));
+  s.position.y=0.18; g.add(s);
+  return g;
+}
+function makeTurretMesh(perm){
+  const g=new THREE.Group();
+  if(perm){ // tour de garde 🗼 en pierre
+    const mat=new THREE.MeshLambertMaterial({map:makeStoneTex(false)});
+    const col=new THREE.Mesh(new THREE.BoxGeometry(1.2,2.6,1.2), mat);
+    col.position.y=1.3; g.add(col);
+    const top=new THREE.Mesh(new THREE.BoxGeometry(1.6,0.4,1.6), mat);
+    top.position.y=2.8; g.add(top);
+    for(const [dx,dz] of [[-0.6,-0.6],[0.6,-0.6],[-0.6,0.6],[0.6,0.6]]){
+      const cr=new THREE.Mesh(new THREE.BoxGeometry(0.35,0.4,0.35), mat);
+      cr.position.set(dx,3.2,dz); g.add(cr);
+    }
+    const bow=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.8,0.12), new THREE.MeshLambertMaterial({color:0x6d4c1b}));
+    bow.position.set(0,3.3,0); g.add(bow);
+    return g;
+  }
   const base=new THREE.Mesh(new THREE.BoxGeometry(0.9,0.5,0.9), new THREE.MeshLambertMaterial({color:0x546e7a}));
   base.position.y=0.25; g.add(base);
   const top=new THREE.Mesh(new THREE.BoxGeometry(0.6,0.5,0.6), new THREE.MeshLambertMaterial({color:0x1565c0}));
@@ -623,7 +686,7 @@ function newSim(){
   return {
     phase:'prep', phaseT:3, wave:0, score:0, coins:0,
     baseHp:BASE_MAXHP, agaposCd:8,
-    players:{}, enemies:[], arrows:[], walls:[], turrets:[],
+    players:{}, enemies:[], arrows:[], walls:[], turrets:[], traps:[],
     maman:null,             // {t, x, z}
     toSpawn:0, spawnT:0, nextId:1, events:[],
   };
@@ -634,8 +697,8 @@ function addPlayerToSim(id, name, charKey){
   const ch = CHARS[charKey];
   sim.players[id] = {
     x: Math.cos(ang)*8, z: Math.sin(ang)*8, hp:ch.maxhp, char:charKey, colorIdx:idx,
-    name:(name||ch.name).slice(0,10), ang:0, fireCd:0, abCd:0, rageT:0, wallCd:0,
-    alive:true, respawn:0, inMx:0, inMz:0, inAb:false, inWall:false, inMom:false
+    name:(name||ch.name).slice(0,10), ang:0, fireCd:0, abCd:0, rageT:0, buildCd:0,
+    alive:true, respawn:0, inMx:0, inMz:0, inAb:false, inBuy:null, inMom:false
   };
 }
 function takenChars(){ return sim? Object.values(sim.players).map(p=>p.char) : []; }
@@ -762,17 +825,31 @@ function simStep(dt){
       }
     }
 
-    /* construire un mur 🧱 */
-    if(p.wallCd>0) p.wallCd-=dt;
-    if(p.inWall){ p.inWall=false;
-      if(p.wallCd<=0 && s.coins>=WALL_COST && s.walls.length<WALL_MAX){
-        s.coins-=WALL_COST; p.wallCd=WALL_CD;
+    /* achats à la boutique 🛒 */
+    if(p.buildCd>0) p.buildCd-=dt;
+    if(p.inBuy){ const key=p.inBuy; p.inBuy=null;
+      const item=SHOP[key];
+      if(item && p.buildCd<=0 && s.coins>=item.cost && item.can(s)){
+        s.coins-=item.cost; p.buildCd=BUILD_CD;
         const dx=Math.sin(p.ang), dz=Math.cos(p.ang);
-        const wx=clamp(p.x+dx*2.6,-HALF,HALF), wz=clamp(p.z+dz*2.6,-HALF,HALF);
-        // orientation perpendiculaire à la direction du joueur
-        const horiz = Math.abs(dx) <= Math.abs(dz) ? 0 : 1; // 0: mur le long de X
-        s.walls.push({ id:s.nextId++, x:wx, z:wz, a:horiz, hp:WALL_HP });
-        s.events.push({e:'wall', x:wx, z:wz});
+        const fx=clamp(p.x+dx*2.6,-HALF,HALF), fz=clamp(p.z+dz*2.6,-HALF,HALF);
+        const horiz = Math.abs(dx) <= Math.abs(dz) ? 0 : 1;
+        if(key==='wall'){
+          s.walls.push({ id:s.nextId++, x:fx, z:fz, a:horiz, hp:WALL_HP, t:0 });
+          s.events.push({e:'wall', x:fx, z:fz});
+        } else if(key==='rampart'){
+          s.walls.push({ id:s.nextId++, x:fx, z:fz, a:horiz, hp:RAMPART_HP, t:1 });
+          s.events.push({e:'wall', x:fx, z:fz});
+        } else if(key==='tower'){
+          s.turrets.push({ id:s.nextId++, x:fx, z:fz, t:9999, cd:0, perm:1 });
+          s.events.push({e:'tower', x:fx, z:fz});
+        } else if(key==='trap'){
+          s.traps.push({ id:s.nextId++, x:fx, z:fz });
+          s.events.push({e:'wall', x:fx, z:fz});
+        } else if(key==='heal'){
+          s.baseHp=Math.min(BASE_MAXHP, s.baseHp+60);
+          s.events.push({e:'heal'});
+        }
       }
     }
 
@@ -788,17 +865,32 @@ function simStep(dt){
     if(p.hp<CHARS[p.char].maxhp) p.hp=Math.min(CHARS[p.char].maxhp, p.hp+3*dt);
   }
 
-  /* --- tourelles d'Antipas --- */
+  /* --- tourelles (gadget d'Antipas + tours de garde) --- */
   for(let i=s.turrets.length-1;i>=0;i--){
     const t=s.turrets[i];
-    t.t-=dt; t.cd-=dt;
+    if(!t.perm) t.t-=dt;
+    t.cd-=dt;
     if(t.cd<=0){
-      const e=nearestEnemy(t.x,t.z,14);
+      const e=nearestEnemy(t.x,t.z,t.perm?16:14);
       if(e){ const dx=e.x-t.x,dz=e.z-t.z,d=Math.hypot(dx,dz)||1;
-        s.arrows.push({id:s.nextId++,k:'laser',x:t.x,z:t.z,vx:dx/d*36,vz:dz/d*36,life:1.0,dmg:3,pierce:false,charm:0,hits:{}});
-        t.cd=0.4; }
+        s.arrows.push({id:s.nextId++,k:t.perm?'arrow':'laser',x:t.x,z:t.z,vx:dx/d*36,vz:dz/d*36,life:1.0,dmg:3,pierce:false,charm:0,hits:{}});
+        t.cd=t.perm?0.75:0.4; }
     }
     if(t.t<=0) s.turrets.splice(i,1);
+  }
+
+  /* --- pièges TNT 💣 --- */
+  for(let i=s.traps.length-1;i>=0;i--){
+    const tr=s.traps[i];
+    let triggered=false;
+    for(const e of s.enemies){
+      if(Math.hypot(e.x-tr.x,e.z-tr.z)<1.15){ triggered=true; break; }
+    }
+    if(triggered){
+      for(const e of s.enemies){ if(Math.hypot(e.x-tr.x,e.z-tr.z)<3.4) e.hp-=12; }
+      s.events.push({e:'boom', x:tr.x, z:tr.z});
+      s.traps.splice(i,1);
+    }
   }
 
   /* --- projectiles --- */
@@ -898,8 +990,9 @@ function killEnemy(i){
 }
 function wallAt(x,z){
   for(const w of sim.walls){
-    const hx = w.a===0 ? 1.7 : 0.55;
-    const hz = w.a===0 ? 0.55 : 1.7;
+    const L = w.t===1 ? 2.6 : 1.7, T = w.t===1 ? 0.65 : 0.55;
+    const hx = w.a===0 ? L : T;
+    const hz = w.a===0 ? T : L;
     if(Math.abs(x-w.x)<hx && Math.abs(z-w.z)<hz) return w;
   }
   return null;
@@ -946,8 +1039,9 @@ function buildSnapshot(){
     players,
     enemies: s.enemies.map(e=>({i:e.id,t:e.type,x:round1(e.x),z:round1(e.z),a:round2(e.ang),c:e.charmT>0?1:0,f:(e.expT!==undefined&&e.expT<1)?1:0})),
     arrows: s.arrows.map(a=>({i:a.id,k:a.k,x:round1(a.x),z:round1(a.z)})),
-    walls: s.walls.map(w=>({i:w.id,x:round1(w.x),z:round1(w.z),a:w.a,hp:Math.round(w.hp/WALL_HP*100)})),
-    turrets: s.turrets.map(t=>({i:t.id,x:round1(t.x),z:round1(t.z)})),
+    walls: s.walls.map(w=>({i:w.id,x:round1(w.x),z:round1(w.z),a:w.a,t:w.t,hp:Math.round(w.hp/(w.t===1?RAMPART_HP:WALL_HP)*100)})),
+    turrets: s.turrets.map(t=>({i:t.id,x:round1(t.x),z:round1(t.z),k:t.perm?1:0})),
+    traps: s.traps.map(t=>({i:t.id,x:round1(t.x),z:round1(t.z)})),
     maman: s.maman? {x:round1(s.maman.x), z:round1(s.maman.z)} : null,
     base:Math.round(s.baseHp), wave:s.wave, score:s.score, coins:s.coins,
     phase:s.phase, phaseT:Math.max(0,Math.round(s.phaseT)), ev:s.events.slice(),
@@ -968,7 +1062,7 @@ function loop(t){
     const me=sim.players[myId];
     if(me){ me.inMx=input.mx; me.inMz=input.mz;
       if(input.ab){me.inAb=true; input.ab=false;}
-      if(input.wall){me.inWall=true; input.wall=false;}
+      if(input.buy){me.inBuy=input.buy; input.buy=null;}
       if(input.mom){me.inMom=true; input.mom=false;} }
     acc+=dtMs;
     while(acc>=TICK){ simStep(TICK/1000); acc-=TICK; }
@@ -980,8 +1074,8 @@ function loop(t){
     lastNet+=dtMs;
     if(lastNet>=1000/NET_HZ){ lastNet=0;
       if(hostConn && hostConn.open){
-        hostConn.send({t:'input', mx:round2(input.mx), mz:round2(input.mz), ab:input.ab, wall:input.wall, mom:input.mom});
-        input.ab=false; input.wall=false; input.mom=false;
+        hostConn.send({t:'input', mx:round2(input.mx), mz:round2(input.mz), ab:input.ab, buy:input.buy, mom:input.mom});
+        input.ab=false; input.buy=null; input.mom=false;
       }
     }
   }
@@ -1045,27 +1139,37 @@ function renderScene(dt){
   }
   for(const id in meshes.arrows){ if(!seenA[id]){ scene.remove(meshes.arrows[id]); delete meshes.arrows[id]; } }
 
-  // murs
+  // murs et murailles
   const seenW={};
   for(const w of snap.walls){
     seenW[w.i]=1;
     let m=meshes.walls[w.i];
-    if(!m){ m=makeWallMesh(); scene.add(m); meshes.walls[w.i]=m;
-      m.position.set(w.x,0.9,w.z); m.rotation.y = w.a===0?0:Math.PI/2; }
-    // état du mur : il s'enfonce quand abîmé
-    m.position.y = 0.9 * (0.35 + 0.65*w.hp/100);
+    if(!m){ m=makeWallMesh(w.t); scene.add(m); meshes.walls[w.i]=m;
+      m.position.set(w.x,w.t===1?1.15:0.9,w.z); m.rotation.y = w.a===0?0:Math.PI/2;
+      m.userData.baseY = w.t===1?1.15:0.9; }
+    // état : la structure s'enfonce quand abîmée
+    m.position.y = m.userData.baseY * (0.35 + 0.65*w.hp/100);
   }
-  for(const id in meshes.walls){ if(!seenW[id]){ scene.remove(meshes.walls[id]); delete meshes.walls[id]; } }
+  for(const id in meshes.walls){ if(!seenW[id]){ scene.remove(meshes.walls[id]); disposeMesh(meshes.walls[id]); delete meshes.walls[id]; } }
 
-  // tourelles
+  // tourelles et tours de garde
   const seenT={};
   for(const t of snap.turrets){
     seenT[t.i]=1;
     let m=meshes.turrets[t.i];
-    if(!m){ m=makeTurretMesh(); scene.add(m); meshes.turrets[t.i]=m; m.position.set(t.x,0,t.z); }
-    m.rotation.y += 0.06;
+    if(!m){ m=makeTurretMesh(t.k===1); scene.add(m); meshes.turrets[t.i]=m; m.position.set(t.x,0,t.z); }
+    if(t.k!==1) m.rotation.y += 0.06;
   }
   for(const id in meshes.turrets){ if(!seenT[id]){ scene.remove(meshes.turrets[id]); disposeMesh(meshes.turrets[id]); delete meshes.turrets[id]; } }
+
+  // pièges TNT
+  const seenTr={};
+  if(snap.traps) for(const tr of snap.traps){
+    seenTr[tr.i]=1;
+    let m=meshes.traps[tr.i];
+    if(!m){ m=makeTrapMesh(); scene.add(m); meshes.traps[tr.i]=m; m.position.set(tr.x,0,tr.z); }
+  }
+  for(const id in meshes.traps){ if(!seenTr[id]){ scene.remove(meshes.traps[id]); disposeMesh(meshes.traps[id]); delete meshes.traps[id]; } }
 
   // MAMAN
   if(snap.maman){
@@ -1092,6 +1196,8 @@ function handleEvents(evs){
     else if(ev.e==='charm') { showBanner('😍 SOURIRE DE STAR !', '#ff8fb3'); spawnRing(ev.x,ev.z,0xff4d88); }
     else if(ev.e==='hearts') spawnAura(ev.x,ev.z,0xff4d88);
     else if(ev.e==='turret') showBanner('🤖 TOURELLE !', '#90caf9');
+    else if(ev.e==='tower') { showBanner('🗼 TOUR DE GARDE !', '#ffcc80'); spawnAura(ev.x,ev.z,0xffcc80); }
+    else if(ev.e==='heal') { showBanner('💛 GROS CÂLIN POUR AGAPOS !', '#ffd54f'); spawnRing(0,0,0x7ec850); }
     else if(ev.e==='rage') showBanner('🦁 CRI DE COURAGE !', '#ff5252');
     else if(ev.e==='wall') spawnAura(ev.x,ev.z,0xbcaaa4);
     else if(ev.e==='agapos') { showBanner('🥺 BOUILLE D\'AMOUR !', '#ffd54f'); spawnRing(0,0,0xffd54f); spawnAura(0,0,0xff4d88); }
@@ -1190,10 +1296,16 @@ function updateHUD(){
   const me=snap.players[myId];
   if(me){
     document.getElementById('abCd').style.height=(me.ac*100)+'%';
-    const wallB=document.getElementById('wallBtn');
-    const momB=document.getElementById('momBtn');
-    wallB.classList.toggle('locked', snap.coins<WALL_COST);
-    momB.classList.toggle('locked', snap.coins<MOM_COST || !!snap.maman);
+    document.getElementById('momBtn').classList.toggle('locked', snap.coins<MOM_COST || !!snap.maman);
+    document.getElementById('shopBtn').classList.toggle('locked', snap.coins<5);
+  }
+  // boutique
+  const shopEl=document.getElementById('shop');
+  if(!shopEl.classList.contains('hidden')){
+    document.getElementById('shopCoins').textContent='🪙 '+snap.coins;
+    document.querySelectorAll('.shop-item').forEach(el=>{
+      el.classList.toggle('locked', snap.coins < +el.dataset.cost);
+    });
   }
 }
 function setupAbilityButton(){
@@ -1233,13 +1345,20 @@ function initControls(){
   window.addEventListener('mouseup',()=>{ if(mouseDown){ mouseDown=false; end(); } });
 
   bindTap('abBtn', ()=>{ input.ab=true; });
-  bindTap('wallBtn', ()=>{ input.wall=true; });
+  bindTap('shopBtn', ()=>{ document.getElementById('shop').classList.toggle('hidden'); });
   bindTap('momBtn', ()=>{ input.mom=true; });
+  document.getElementById('shopClose').addEventListener('click', ()=>document.getElementById('shop').classList.add('hidden'));
+  document.querySelectorAll('.shop-item').forEach(el=>{
+    const fn=()=>{ input.buy=el.dataset.key; };
+    el.addEventListener('touchstart',e=>{ e.preventDefault(); fn(); },{passive:false});
+    el.addEventListener('mousedown',e=>{ e.preventDefault(); fn(); });
+  });
 
   const keys={};
   window.addEventListener('keydown',e=>{ keys[e.key.toLowerCase()]=true;
     if(e.key===' ')input.ab=true;
-    if(e.key.toLowerCase()==='e')input.wall=true;
+    if(e.key.toLowerCase()==='e')input.buy='wall';
+    if(e.key.toLowerCase()==='b')document.getElementById('shop').classList.toggle('hidden');
     if(e.key.toLowerCase()==='m')input.mom=true;
     updateKeys(); });
   window.addEventListener('keyup',e=>{ keys[e.key.toLowerCase()]=false; updateKeys(); });
@@ -1264,7 +1383,7 @@ function genCode(){
   let c=''; for(let i=0;i<4;i++) c+=letters[Math.floor(Math.random()*letters.length)];
   return c;
 }
-const PREFIX='mccsv4-';
+const PREFIX='mccsv5-';
 
 function hostCreate(){
   roomCode=genCode();
@@ -1303,7 +1422,7 @@ function onHostData(conn,d){
   } else if(d.t==='input'){
     const p=sim.players[conn.pid];
     if(p){ p.inMx=d.mx; p.inMz=d.mz;
-      if(d.ab)p.inAb=true; if(d.wall)p.inWall=true; if(d.mom)p.inMom=true; }
+      if(d.ab)p.inAb=true; if(d.buy)p.inBuy=String(d.buy); if(d.mom)p.inMom=true; }
   }
 }
 function removeClient(conn){
@@ -1451,7 +1570,7 @@ function bindUI(){
     if(ROLE==='host'){
       const keep=sim.players; sim=newSim(); sim.players=keep;
       for(const id in sim.players){ const p=sim.players[id]; const ch=CHARS[p.char];
-        p.hp=ch.maxhp; p.alive=true; p.abCd=0; p.fireCd=0; p.rageT=0; p.wallCd=0; }
+        p.hp=ch.maxhp; p.alive=true; p.abCd=0; p.fireCd=0; p.rageT=0; p.buildCd=0; }
       broadcast({t:'start'}); beginPlay(); startWaves();
     }
   };
