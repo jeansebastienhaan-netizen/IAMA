@@ -82,24 +82,24 @@
   #joyKnob { position:absolute; width:56px; height:56px; border-radius:50%; background:rgba(126,200,80,.75);
              border:3px solid rgba(255,255,255,.6); transform:translate(-50%,-50%); display:none; }
 
-  .actBtn { position:absolute; right:18px; border-radius:50%; pointer-events:auto; border:4px solid #000; color:#fff;
+  .actBtn { position:absolute; right:16px; border-radius:50%; pointer-events:auto; border:3px solid rgba(0,0,0,.55); color:#fff;
             font-weight:bold; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;
-            box-shadow:0 4px 0 #000; overflow:hidden; line-height:1.05; }
-  .actBtn:active { transform:translateY(3px); }
+            box-shadow:0 3px 0 rgba(0,0,0,.35); overflow:hidden; line-height:1.05; opacity:.5; }
+  .actBtn:active { transform:translateY(2px); opacity:1; }
   .actBtn .cd { position:absolute; left:0; right:0; bottom:0; background:rgba(0,0,0,.65); height:0%; z-index:1; }
-  .actBtn .ic { position:relative; z-index:2; font-size:8vw; }
-  .actBtn .lb { position:relative; z-index:2; font-size:2.6vw; margin-top:1px; }
-  .actBtn.locked { filter:grayscale(.9); }
-  #abBtn  { bottom:60px; width:100px; height:100px; background:radial-gradient(circle at 35% 30%,#9575cd,#4527a0); }
-  #wallBtn{ bottom:180px; width:78px; height:78px; right:26px; background:radial-gradient(circle at 35% 30%,#bcaaa4,#5d4037); }
-  #momBtn { bottom:278px; width:78px; height:78px; right:26px; background:radial-gradient(circle at 35% 30%,#f48fb1,#ad1457); }
+  .actBtn .ic { position:relative; z-index:2; font-size:6vw; }
+  .actBtn .lb { position:relative; z-index:2; font-size:2.1vw; margin-top:1px; }
+  .actBtn.locked { filter:grayscale(.9); opacity:.32; }
+  #abBtn  { bottom:52px; width:78px; height:78px; background:radial-gradient(circle at 35% 30%,#9575cd,#4527a0); }
+  #wallBtn{ bottom:146px; width:60px; height:60px; right:25px; background:radial-gradient(circle at 35% 30%,#bcaaa4,#5d4037); }
+  #momBtn { bottom:222px; width:60px; height:60px; right:25px; background:radial-gradient(circle at 35% 30%,#f48fb1,#ad1457); }
   #hint { position:absolute; left:12px; bottom:12px; font-size:3vw; color:rgba(255,255,255,.5); pointer-events:none; }
 
   @media (min-width:820px){
     h1{font-size:64px} h1 .sub{font-size:24px} p.tag{font-size:20px} .btn{font-size:22px} input.field{font-size:24px}
     .wave-lbl{font-size:26px} .score-lbl{font-size:16px} .coin-lbl{font-size:20px} .base-title{font-size:15px} .code-box{font-size:60px}
     .players-list li{font-size:20px} .pchip{font-size:15px} #banner{font-size:60px} .note{font-size:15px} .err{font-size:16px}
-    .spin{font-size:18px} #hint{font-size:14px} .actBtn .ic{font-size:34px} .actBtn .lb{font-size:11px}
+    .spin{font-size:18px} #hint{font-size:14px} .actBtn .ic{font-size:26px} .actBtn .lb{font-size:9px}
     .char-card .cemoji{font-size:44px} .char-card .cname{font-size:24px} .char-card .ctitle{font-size:16px} .char-card .cdesc{font-size:13px}
   }
 </style>
