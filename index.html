@@ -96,12 +96,12 @@
   #hint { position:absolute; left:12px; bottom:12px; font-size:3vw; color:rgba(255,255,255,.5); pointer-events:none; }
 
   /* ---------- Boutique ---------- */
-  #shop { position:absolute; right:14px; bottom:120px; width:240px; background:rgba(6,12,24,.88); border:2px solid #3a4a66;
-          border-radius:14px; padding:10px; pointer-events:auto; z-index:30; }
+  #shop { position:absolute; right:14px; bottom:120px; width:240px; background:rgba(6,12,24,.45); border:2px solid rgba(58,74,102,.6);
+          border-radius:14px; padding:10px; pointer-events:auto; z-index:30; backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px); }
   .shop-head { display:flex; justify-content:space-between; align-items:center; font-weight:bold; margin-bottom:6px; font-size:15px; }
   .shop-head .sx { background:none; border:none; color:#9fb0cc; font-size:18px; padding:2px 8px; cursor:pointer; }
-  .shop-item { display:flex; gap:8px; align-items:center; background:#152238; border-radius:9px; padding:8px; margin:5px 0; cursor:pointer; }
-  .shop-item:active{ background:#2c4a7c; }
+  .shop-item { display:flex; gap:8px; align-items:center; background:rgba(21,34,56,.5); border-radius:9px; padding:8px; margin:5px 0; cursor:pointer; }
+  .shop-item:active{ background:rgba(44,74,124,.85); }
   .shop-item.locked{ opacity:.35; pointer-events:none; }
   .shop-item .se{ font-size:22px; flex:0 0 auto; }
   .shop-item .sn{ font-size:13px; font-weight:bold; text-align:left; }
