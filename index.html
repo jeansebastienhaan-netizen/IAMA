@@ -177,6 +177,7 @@
   <button class="btn gray small" id="btnSolo">🎯 Entraînement solo</button>
   <p class="note" id="bestLbl" style="color:#ffd54f"></p>
   <p class="note">Un joueur crée la partie et partage le code aux autres.<br>Chacun joue sur son propre téléphone.</p>
+  <p class="note" id="verLbl" style="opacity:.6"></p>
 </div>
 
 <!-- ===== ÉCRAN : Prénom (rejoindre) ===== -->
@@ -1503,17 +1504,31 @@ function bindTap(id, fn){
 }
 
 /* ===================== RÉSEAU ===================== */
+const VERSION = 7;              // ⚠️ tous les téléphones doivent avoir la même !
+const PREFIX = 'iamafr-';       // préfixe STABLE (ne change plus entre versions)
 function genCode(){
   const letters='ABCDEFGHJKMNPQRSTUVWXYZ23456789';
   let c=''; for(let i=0;i<4;i++) c+=letters[Math.floor(Math.random()*letters.length)];
   return c;
 }
-const PREFIX='mccsv6-';
+/* STUN + relais TURN gratuits : permet la connexion même entre réseaux différents (4G/WiFi) */
+const ICE = { iceServers: [
+  { urls:'stun:stun.l.google.com:19302' },
+  { urls:'stun:stun1.l.google.com:19302' },
+  { urls:'turn:openrelay.metered.ca:80',  username:'openrelayproject', credential:'openrelayproject' },
+  { urls:'turn:openrelay.metered.ca:443', username:'openrelayproject', credential:'openrelayproject' },
+  { urls:'turn:openrelay.metered.ca:443?transport=tcp', username:'openrelayproject', credential:'openrelayproject' },
+]};
+function peerOpts(){ return Object.assign({debug:1, config:ICE}, window.__PEER_TEST||{}); }
+function setLoadMsg(m){ const el=document.getElementById('loadMsg'); if(el) el.textContent=m; }
 
 function hostCreate(){
   roomCode=genCode();
-  peer=new Peer(PREFIX+roomCode, {debug:1});
+  setLoadMsg('Connexion au serveur de jeu…');
+  peer=new Peer(PREFIX+roomCode, peerOpts());
+  let opened=false;
   peer.on('open', ()=>{
+    opened=true;
     ROLE='host'; myId='h';
     sim=newSim(); addPlayerToSim('h', myName, myChar);
     setupAbilityButton();
@@ -1525,18 +1540,21 @@ function hostCreate(){
     conn.on('close', ()=>removeClient(conn));
     conn.on('error', ()=>removeClient(conn));
   });
+  peer.on('disconnected', ()=>{ try{ peer.reconnect(); }catch(e){} });
   peer.on('error', err=>{
     if(err.type==='unavailable-id'){ peer.destroy(); hostCreate(); }
-    else { showNetError("Erreur réseau : "+err.type); }
+    else if(!opened){ showNetError("Impossible de joindre le serveur de jeu 📡\nVérifie que le téléphone a bien internet, puis réessaie."); }
+    else if(running){ showNetError("Erreur réseau : "+err.type); }
   });
+  setTimeout(()=>{ if(!opened){ try{peer.destroy();}catch(e){} showNetError("Le serveur de jeu ne répond pas 📡\nVérifie ta connexion internet et réessaie dans quelques secondes."); } }, 15000);
 }
 function onHostData(conn,d){
   if(d.t==='hello'){
     if(Object.keys(sim.players).length>=3){ conn.send({t:'full'}); return; }
     conns[conn.peer]=conn;
-    conn.send({t:'chars', taken:takenChars(), code:roomCode});
+    conn.send({t:'chars', taken:takenChars(), code:roomCode, v:VERSION});
   } else if(d.t==='pick'){
-    if(takenChars().includes(d.char)){ conn.send({t:'chars', taken:takenChars(), code:roomCode, retry:1}); return; }
+    if(takenChars().includes(d.char)){ conn.send({t:'chars', taken:takenChars(), code:roomCode, v:VERSION, retry:1}); return; }
     if(Object.keys(sim.players).length>=3){ conn.send({t:'full'}); return; }
     const pid='p'+conn.peer.slice(-4);
     conn.pid=pid;
@@ -1562,23 +1580,35 @@ function broadcastLobby(){
 }
 
 function clientJoin(code){
-  peer=new Peer({debug:1});
+  setLoadMsg('Connexion au serveur de jeu…');
+  peer=new Peer(peerOpts());
+  let sigOpen=false;
   peer.on('open', ()=>{
+    sigOpen=true;
+    setLoadMsg('Recherche de la partie '+code+'…');
     hostConn=peer.connect(PREFIX+code, {reliable:true});
     let opened=false;
-    hostConn.on('open', ()=>{ opened=true; hostConn.send({t:'hello'}); });
+    hostConn.on('open', ()=>{ opened=true; hostConn.send({t:'hello', v:VERSION}); });
     hostConn.on('data', d=>onClientData(d));
-    hostConn.on('close', ()=>{ if(running) showNetError("Connexion à l'hôte perdue."); });
+    hostConn.on('close', ()=>{ if(running) showNetError("Connexion à l'hôte perdue 📡"); });
     hostConn.on('error', ()=>{ showJoinError("Impossible de rejoindre. Vérifie le code."); });
-    setTimeout(()=>{ if(!opened) showJoinError("Aucune partie trouvée avec ce code."); }, 8000);
+    setTimeout(()=>{ if(!opened) showJoinError("Aucune partie trouvée avec ce code. Vérifie le code et que l'hôte est bien dans sa salle d'attente."); }, 12000);
   });
+  peer.on('disconnected', ()=>{ try{ peer.reconnect(); }catch(e){} });
   peer.on('error', err=>{
-    if(err.type==='peer-unavailable') showJoinError("Aucune partie trouvée avec ce code.");
+    if(err.type==='peer-unavailable') showJoinError("Aucune partie trouvée avec ce code. Vérifie le code et que l'hôte est bien dans sa salle d'attente.");
+    else if(!sigOpen) showJoinError("Impossible de joindre le serveur de jeu 📡 Vérifie ta connexion internet.");
     else showJoinError("Erreur réseau : "+err.type);
   });
+  setTimeout(()=>{ if(!sigOpen){ try{peer.destroy();}catch(e){} showJoinError("Le serveur de jeu ne répond pas 📡 Vérifie ta connexion internet et réessaie."); } }, 15000);
 }
 function onClientData(d){
-  if(d.t==='chars'){ roomCode=d.code; ROLE='client';
+  if(d.t==='chars'){
+    if(d.v!==undefined && d.v!==VERSION){
+      showJoinError("⚠️ Vos versions du jeu sont différentes ! Sur CHAQUE téléphone : recharge la page (tire vers le bas) ou ferme et rouvre l'appli, puis réessayez.");
+      return;
+    }
+    roomCode=d.code; ROLE='client';
     showCharSelect(d.taken, !!d.retry);
   }
   else if(d.t==='welcome'){ myId=d.id; myChar=d.char; myName=CHARS[d.char].name; roomCode=d.code;
@@ -1748,6 +1778,7 @@ initThree();
 initControls();
 bindUI();
 refreshBest();
+document.getElementById('verLbl').textContent='Version '+VERSION+' — la même sur tous les téléphones = connexion OK';
 show('scrMenu');
 if(location.hash==='#solo') setTimeout(()=>window.__startSolo(),300);
 requestAnimationFrame(loop);
