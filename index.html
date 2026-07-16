@@ -73,6 +73,9 @@
   .phpbar>span{ display:block; height:100%; background:#7ec850; }
   #banner { position:absolute; top:30%; left:0; right:0; text-align:center; font-size:8.4vw; font-weight:bold;
             color:#fff; text-shadow:3px 3px 0 #000; opacity:0; transition:opacity .3s; }
+  #sndBtn { pointer-events:auto; border:none; color:#fff; font-size:5vw; cursor:pointer; font-family:inherit; align-self:flex-start; }
+  #bossWrap { position:absolute; top:88px; left:12px; text-align:left; }
+  #bossWrap .bar { width:38vw; max-width:240px; }
 
   /* ---------- Contrôles tactiles ---------- */
   #controls { position:fixed; inset:0; z-index:25; pointer-events:none; }
@@ -112,7 +115,7 @@
     h1{font-size:64px} h1 .sub{font-size:24px} p.tag{font-size:20px} .btn{font-size:22px} input.field{font-size:24px}
     .wave-lbl{font-size:26px} .score-lbl{font-size:16px} .coin-lbl{font-size:20px} .base-title{font-size:15px} .code-box{font-size:60px}
     .players-list li{font-size:20px} .pchip{font-size:15px} #banner{font-size:60px} .note{font-size:15px} .err{font-size:16px}
-    .spin{font-size:18px} #hint{font-size:14px} .actBtn .ic{font-size:26px} .actBtn .lb{font-size:9px}
+    .spin{font-size:18px} #hint{font-size:14px} .actBtn .ic{font-size:26px} .actBtn .lb{font-size:9px} #sndBtn{font-size:22px}
     .char-card .cemoji{font-size:44px} .char-card .cname{font-size:24px} .char-card .ctitle{font-size:16px} .char-card .cdesc{font-size:13px}
   }
 </style>
@@ -128,10 +131,15 @@
       <div class="score-lbl" id="scoreLbl">Score : 0</div>
       <div class="coin-lbl" id="coinLbl">🪙 0</div>
     </div>
+    <button class="panel" id="sndBtn">🔊</button>
     <div class="panel" id="baseWrap">
       <div class="base-title">💛 AGAPOS</div>
       <div class="bar"><span id="baseBar"></span></div>
     </div>
+  </div>
+  <div class="panel hidden" id="bossWrap">
+    <div class="base-title" style="color:#d05ce3">🐉 BOSS</div>
+    <div class="bar"><span id="bossBar" style="background:linear-gradient(90deg,#7b1fa2,#d05ce3)"></span></div>
   </div>
   <div id="plist"></div>
   <div id="banner"></div>
@@ -163,6 +171,7 @@
   <button class="btn green" id="btnCreate">🏰 Créer une partie</button>
   <button class="btn blue" id="btnJoin">🔑 Rejoindre une partie</button>
   <button class="btn gray small" id="btnSolo">🎯 Entraînement solo</button>
+  <p class="note" id="bestLbl" style="color:#ffd54f"></p>
   <p class="note">Un joueur crée la partie et partage le code aux autres.<br>Chacun joue sur son propre téléphone.</p>
 </div>
 
@@ -283,6 +292,7 @@ const ENEMY = {
   zombie: { hp:5, speed:2.2, dmg:6, reward:2, target:'base' },
   creeper:{ hp:4, speed:2.8, dmg:28, reward:3, target:'base', explode:true },
   spider: { hp:4, speed:4.2, dmg:5, reward:2, target:'player' },
+  boss:   { hp:60, speed:1.5, dmg:15, reward:20, target:'base', boss:true },
 };
 
 /* ===================== ÉTAT GLOBAL ===================== */
@@ -579,7 +589,32 @@ function makePlayerMesh(charKey, name){
   g.userData.label=lbl; g.userData.body=body;
   return g;
 }
+function makeBossMesh(){
+  const g=new THREE.Group();
+  const mat=new THREE.MeshLambertMaterial({color:0x2e1a47});
+  const wingMat=new THREE.MeshLambertMaterial({color:0x1a0f2e});
+  const body=new THREE.Mesh(new THREE.BoxGeometry(2.6,1.6,3.4), mat);
+  body.position.y=2.0; g.add(body);
+  const head=new THREE.Mesh(new THREE.BoxGeometry(1.4,1.2,1.6), mat);
+  head.position.set(0,2.6,2.2); g.add(head);
+  for(const dx of [-0.4,0.4]){
+    const e=new THREE.Mesh(new THREE.BoxGeometry(0.28,0.2,0.1), new THREE.MeshBasicMaterial({color:0xd05ce3}));
+    e.position.set(dx,2.75,3.02); g.add(e);
+  }
+  for(const dx of [-0.5,0.5]){
+    const h=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.6,0.2), mat); h.position.set(dx,3.4,1.9); g.add(h);
+  }
+  const w1=new THREE.Mesh(new THREE.BoxGeometry(3.2,0.15,1.8), wingMat); w1.position.set(-2.4,2.9,0); g.add(w1);
+  const w2=new THREE.Mesh(new THREE.BoxGeometry(3.2,0.15,1.8), wingMat); w2.position.set(2.4,2.9,0); g.add(w2);
+  g.userData.wings=[w1,w2];
+  const tail=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.5,2.4), mat); tail.position.set(0,2.0,-2.6); g.add(tail);
+  for(const [dx,dz] of [[-0.9,1.0],[0.9,1.0],[-0.9,-1.0],[0.9,-1.0]]){
+    const l=new THREE.Mesh(new THREE.BoxGeometry(0.5,1.4,0.5), mat); l.position.set(dx,0.9,dz); g.add(l);
+  }
+  return g;
+}
 function makeEnemyMesh(type){
+  if(type==='boss') return makeBossMesh();
   const g=new THREE.Group();
   if(type==='creeper'){
     const body=new THREE.Mesh(new THREE.BoxGeometry(0.9,1.8,0.9),
@@ -714,7 +749,14 @@ function simStep(dt){
     s.phaseT-=dt;
     if(s.phaseT<=0){
       s.wave++;
-      s.toSpawn = 4 + Math.floor(s.wave*2.2);
+      let n = 4 + Math.floor(s.wave*2.2);
+      if(s.wave%5===0){ // 🐉 vague de BOSS !
+        n = Math.ceil(n*0.6);
+        const bhp = 60 + s.wave*8;
+        s.enemies.push({ id:s.nextId++, type:'boss', x:0, z:-HALF, hp:bhp, maxhp:bhp, ang:0, charmT:0 });
+        s.events.push({e:'boss'});
+      }
+      s.toSpawn = n;
       s.spawnT=0; s.phase='wave';
       s.events.push({e:'wave', n:s.wave});
     }
@@ -749,7 +791,7 @@ function simStep(dt){
   s.agaposCd-=dt;
   if(s.agaposCd<=0){
     let n=0;
-    for(const e of s.enemies){ if(Math.hypot(e.x,e.z)<8.5){ e.charmT=Math.max(e.charmT||0,2.5); n++; } }
+    for(const e of s.enemies){ if(e.type!=='boss' && Math.hypot(e.x,e.z)<8.5){ e.charmT=Math.max(e.charmT||0,2.5); n++; } }
     if(n>0){
       // sa mignonnerie soigne aussi les héros proches
       for(const id in s.players){ const p=s.players[id];
@@ -813,7 +855,7 @@ function simStep(dt){
         p.abCd=ch.abCd;
         if(p.char==='israel'){
           let n=0;
-          for(const e of s.enemies){ if(Math.hypot(e.x-p.x,e.z-p.z)<10){ e.charmT=4; n++; } }
+          for(const e of s.enemies){ if(e.type!=='boss' && Math.hypot(e.x-p.x,e.z-p.z)<10){ e.charmT=4; n++; } }
           s.events.push({e:'charm', x:p.x, z:p.z});
         } else if(p.char==='antipas'){
           s.turrets.push({ id:s.nextId++, x:p.x, z:p.z, t:12, cd:0 });
@@ -902,7 +944,7 @@ function simStep(dt){
       if(a.hits[e.id]) continue;
       if(Math.hypot(e.x-a.x,e.z-a.z) < 0.95){
         e.hp-=a.dmg; a.hits[e.id]=1;
-        if(a.charm && Math.random()<a.charm){ e.charmT=Math.max(e.charmT||0,1.6); s.events.push({e:'hearts', x:e.x, z:e.z}); }
+        if(a.charm && e.type!=='boss' && Math.random()<a.charm){ e.charmT=Math.max(e.charmT||0,1.6); s.events.push({e:'hearts', x:e.x, z:e.z}); }
         if(!a.pierce){ done=true; }
         break;
       }
@@ -958,9 +1000,10 @@ function simStep(dt){
       e.x=nx; e.z=nz;
     }
 
-    if(def.target==='base' && d<3.2 && e.type!=='creeper'){
+    if(def.target==='base' && d<(e.type==='boss'?4.4:3.2) && e.type!=='creeper'){
       e.atk=(e.atk||0)-dt;
-      if(e.atk<=0){ s.baseHp-=def.dmg; e.atk=1.0; s.events.push({e:'ouch'}); }
+      if(e.atk<=0){ s.baseHp-=def.dmg; e.atk=(e.type==='boss'?1.5:1.0);
+        if(e.type==='boss') s.events.push({e:'boom', x:e.x, z:e.z}); }
     }
     if(def.target==='player'){
       const pl=nearestPlayer(e.x,e.z);
@@ -984,8 +1027,9 @@ function simStep(dt){
 
 function killEnemy(i){
   const e=sim.enemies[i]; const def=ENEMY[e.type];
-  sim.score+=1; sim.coins+=def.reward;
+  sim.score+= e.type==='boss'?10:1; sim.coins+=def.reward;
   sim.events.push({e:'pop', x:e.x, z:e.z});
+  if(e.type==='boss') sim.events.push({e:'bossdead', x:e.x, z:e.z});
   sim.enemies.splice(i,1);
 }
 function wallAt(x,z){
@@ -1043,6 +1087,7 @@ function buildSnapshot(){
     turrets: s.turrets.map(t=>({i:t.id,x:round1(t.x),z:round1(t.z),k:t.perm?1:0})),
     traps: s.traps.map(t=>({i:t.id,x:round1(t.x),z:round1(t.z)})),
     maman: s.maman? {x:round1(s.maman.x), z:round1(s.maman.z)} : null,
+    boss: (()=>{ const b=s.enemies.find(e=>e.type==='boss'); return b? Math.round(b.hp/b.maxhp*100) : null; })(),
     base:Math.round(s.baseHp), wave:s.wave, score:s.score, coins:s.coins,
     phase:s.phase, phaseT:Math.max(0,Math.round(s.phaseT)), ev:s.events.slice(),
   };
@@ -1125,6 +1170,11 @@ function renderScene(dt){
     } else if(m.userData.heart){ m.userData.heart.visible=false; }
     // creeper qui va exploser : pulsation
     if(e.f===1){ const s=1+Math.sin(lastT*0.03)*0.12; m.scale.set(s,s,s); } else m.scale.set(1,1,1);
+    // ailes du boss qui battent
+    if(e.t==='boss' && m.userData.wings){
+      const fl=Math.sin(lastT*0.008)*0.45;
+      m.userData.wings[0].rotation.z=fl; m.userData.wings[1].rotation.z=-fl;
+    }
   }
   for(const id in meshes.enemies){ if(!seenE[id]){ scene.remove(meshes.enemies[id]); disposeMesh(meshes.enemies[id]); delete meshes.enemies[id]; } }
 
@@ -1183,26 +1233,93 @@ function renderScene(dt){
 }
 function disposeMesh(g){ g.traverse(o=>{ if(o.geometry)o.geometry.dispose(); }); }
 
+/* ===================== AUDIO (sons synthétisés) ===================== */
+let AC=null, muted=false;
+try{ muted = localStorage.getItem('iamaMuted')==='1'; }catch(e){}
+function ac(){
+  if(!AC){ const Ctx=window.AudioContext||window.webkitAudioContext; if(!Ctx) return null; AC=new Ctx(); }
+  if(AC.state==='suspended') AC.resume();
+  return AC;
+}
+function tone(freq, dur, type, vol, slide, delay){
+  if(muted) return;
+  try{
+    const a=ac(); if(!a) return;
+    const t0=a.currentTime+(delay||0);
+    const o=a.createOscillator(), g=a.createGain();
+    o.type=type||'square'; o.frequency.setValueAtTime(freq,t0);
+    if(slide) o.frequency.exponentialRampToValueAtTime(Math.max(20,slide), t0+dur);
+    g.gain.setValueAtTime(vol||0.12, t0);
+    g.gain.exponentialRampToValueAtTime(0.001, t0+dur);
+    o.connect(g); g.connect(a.destination);
+    o.start(t0); o.stop(t0+dur+0.02);
+  }catch(e){}
+}
+function noiseSnd(dur, vol, freq){
+  if(muted) return;
+  try{
+    const a=ac(); if(!a) return;
+    const len=Math.floor(a.sampleRate*dur);
+    const buf=a.createBuffer(1,len,a.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*(1-i/len);
+    const src=a.createBufferSource(); src.buffer=buf;
+    const f=a.createBiquadFilter(); f.type='lowpass'; f.frequency.value=freq||800;
+    const g=a.createGain(); g.gain.value=vol||0.25;
+    src.connect(f); f.connect(g); g.connect(a.destination);
+    src.start();
+  }catch(e){}
+}
+const SND = {
+  pop:   ()=>tone(300,0.12,'square',0.1,150),
+  boom:  ()=>{ noiseSnd(0.45,0.3,500); tone(90,0.4,'sine',0.25,40); },
+  slash: ()=>noiseSnd(0.1,0.12,3000),
+  wave:  ()=>{ tone(440,0.12,'square',0.12); tone(660,0.12,'square',0.12,null,0.13); tone(880,0.2,'square',0.12,null,0.26); },
+  cleared:()=>{ tone(523,0.12,'triangle',0.15); tone(784,0.25,'triangle',0.15,null,0.14); },
+  charm: ()=>{ tone(660,0.1,'sine',0.14); tone(880,0.1,'sine',0.14,null,0.1); tone(1174,0.2,'sine',0.14,null,0.2); },
+  hearts:()=>tone(1100,0.08,'sine',0.08),
+  build: ()=>tone(130,0.15,'square',0.2,70),
+  heal:  ()=>{ tone(523,0.1,'sine',0.14); tone(659,0.1,'sine',0.14,null,0.1); tone(784,0.2,'sine',0.14,null,0.2); },
+  maman: ()=>{ [523,659,784,1046].forEach((f,i)=>tone(f,0.16,'triangle',0.16,null,i*0.14)); },
+  rage:  ()=>tone(150,0.5,'sawtooth',0.2,70),
+  boss:  ()=>{ tone(80,1.0,'sawtooth',0.3,40); noiseSnd(0.8,0.15,300); },
+  bossdead:()=>{ [392,523,659,784,1046].forEach((f,i)=>tone(f,0.15,'square',0.15,null,i*0.12)); },
+  down:  ()=>tone(220,0.5,'sawtooth',0.18,60),
+  over:  ()=>{ tone(400,0.4,'sawtooth',0.2,100); tone(200,0.7,'sawtooth',0.2,50,0.35); },
+  agapos:()=>{ tone(880,0.1,'sine',0.12); tone(1318,0.18,'sine',0.12,null,0.11); },
+};
+
+/* ===================== RECORD 🏆 ===================== */
+function bestLoad(){ try{ return JSON.parse(localStorage.getItem('iamaBest'))||null; }catch(e){ return null; } }
+function bestSave(b){ try{ localStorage.setItem('iamaBest', JSON.stringify(b)); }catch(e){} }
+function refreshBest(){
+  const b=bestLoad();
+  document.getElementById('bestLbl').textContent = b? ('🏆 Record de la fratrie : vague '+b.wave+' · score '+b.score) : '';
+}
+
 /* ===================== EFFETS ===================== */
 const particles=[];
 function handleEvents(evs){
   if(!evs) return;
   for(const ev of evs){
-    if(ev.e==='wave') showBanner('VAGUE '+ev.n, '#ffd54f');
-    else if(ev.e==='cleared') showBanner('Vague '+ev.n+' terminée !', '#7ec850');
-    else if(ev.e==='boom') spawnExplosion(ev.x,ev.z, ev.big?2:1);
-    else if(ev.e==='pop') spawnExplosion(ev.x,ev.z,0.6);
-    else if(ev.e==='slash') spawnSlash(ev.x,ev.z);
-    else if(ev.e==='charm') { showBanner('😍 SOURIRE DE STAR !', '#ff8fb3'); spawnRing(ev.x,ev.z,0xff4d88); }
-    else if(ev.e==='hearts') spawnAura(ev.x,ev.z,0xff4d88);
-    else if(ev.e==='turret') showBanner('🤖 TOURELLE !', '#90caf9');
-    else if(ev.e==='tower') { showBanner('🗼 TOUR DE GARDE !', '#ffcc80'); spawnAura(ev.x,ev.z,0xffcc80); }
-    else if(ev.e==='heal') { showBanner('💛 GROS CÂLIN POUR AGAPOS !', '#ffd54f'); spawnRing(0,0,0x7ec850); }
-    else if(ev.e==='rage') showBanner('🦁 CRI DE COURAGE !', '#ff5252');
-    else if(ev.e==='wall') spawnAura(ev.x,ev.z,0xbcaaa4);
-    else if(ev.e==='agapos') { showBanner('🥺 BOUILLE D\'AMOUR !', '#ffd54f'); spawnRing(0,0,0xffd54f); spawnAura(0,0,0xff4d88); }
-    else if(ev.e==='maman') showBanner('👩‍🍳 MAMAN ARRIVE !', '#f48fb1');
-    else if(ev.e==='mamanSweep') showBanner('🧹 TOUT LE MONDE DEHORS !', '#f48fb1');
+    if(ev.e==='wave') { showBanner('VAGUE '+ev.n, '#ffd54f'); SND.wave(); }
+    else if(ev.e==='cleared') { showBanner('Vague '+ev.n+' terminée !', '#7ec850'); SND.cleared(); }
+    else if(ev.e==='boom') { spawnExplosion(ev.x,ev.z, ev.big?2:1); SND.boom(); }
+    else if(ev.e==='pop') { spawnExplosion(ev.x,ev.z,0.6); SND.pop(); }
+    else if(ev.e==='slash') { spawnSlash(ev.x,ev.z); SND.slash(); }
+    else if(ev.e==='charm') { showBanner('😍 SOURIRE DE STAR !', '#ff8fb3'); spawnRing(ev.x,ev.z,0xff4d88); SND.charm(); }
+    else if(ev.e==='hearts') { spawnAura(ev.x,ev.z,0xff4d88); SND.hearts(); }
+    else if(ev.e==='turret') { showBanner('🤖 TOURELLE !', '#90caf9'); SND.build(); }
+    else if(ev.e==='tower') { showBanner('🗼 TOUR DE GARDE !', '#ffcc80'); spawnAura(ev.x,ev.z,0xffcc80); SND.build(); }
+    else if(ev.e==='heal') { showBanner('💛 GROS CÂLIN POUR AGAPOS !', '#ffd54f'); spawnRing(0,0,0x7ec850); SND.heal(); }
+    else if(ev.e==='rage') { showBanner('🦁 CRI DE COURAGE !', '#ff5252'); SND.rage(); }
+    else if(ev.e==='wall') { spawnAura(ev.x,ev.z,0xbcaaa4); SND.build(); }
+    else if(ev.e==='agapos') { showBanner('🥺 BOUILLE D\'AMOUR !', '#ffd54f'); spawnRing(0,0,0xffd54f); spawnAura(0,0,0xff4d88); SND.agapos(); }
+    else if(ev.e==='maman') { showBanner('👩‍🍳 MAMAN ARRIVE !', '#f48fb1'); SND.maman(); }
+    else if(ev.e==='mamanSweep') { showBanner('🧹 TOUT LE MONDE DEHORS !', '#f48fb1'); SND.boom(); }
+    else if(ev.e==='boss') { showBanner('🐉 UN BOSS APPROCHE !', '#d05ce3'); SND.boss(); }
+    else if(ev.e==='bossdead') { showBanner('🏆 BOSS VAINCU ! +20🪙', '#ffd54f'); SND.bossdead(); }
+    else if(ev.e==='down') SND.down();
     else if(ev.e==='over') triggerOver(ev.wave, ev.score);
   }
 }
@@ -1275,6 +1392,10 @@ function updateHUD(){
   document.getElementById('scoreLbl').textContent='Score : '+snap.score;
   document.getElementById('coinLbl').textContent='🪙 '+snap.coins;
   document.getElementById('baseBar').style.width=(snap.base/BASE_MAXHP*100)+'%';
+  // barre de vie du boss
+  const bw=document.getElementById('bossWrap');
+  if(snap.boss!=null){ bw.classList.remove('hidden'); document.getElementById('bossBar').style.width=snap.boss+'%'; }
+  else bw.classList.add('hidden');
 
   const plist=document.getElementById('plist');
   const ids=Object.keys(snap.players);
@@ -1383,7 +1504,7 @@ function genCode(){
   let c=''; for(let i=0;i<4;i++) c+=letters[Math.floor(Math.random()*letters.length)];
   return c;
 }
-const PREFIX='mccsv5-';
+const PREFIX='mccsv6-';
 
 function hostCreate(){
   roomCode=genCode();
@@ -1539,10 +1660,20 @@ function beginPlay(){
 }
 function triggerOver(wave,score){
   running=false;
+  SND.over();
   document.getElementById('hud').classList.add('hidden');
   document.getElementById('controls').classList.add('hidden');
   document.getElementById('scrOver').querySelector('h1').textContent='💥 GAME OVER';
-  document.getElementById('overText').textContent='Agapos a tenu '+wave+' vagues grâce à vous ! Score : '+score;
+  let txt='Agapos a tenu '+wave+' vagues grâce à vous ! Score : '+score;
+  const b=bestLoad();
+  if(!b || wave>b.wave || (wave===b.wave && score>b.score)){
+    bestSave({wave, score});
+    if(b) txt='🏆 NOUVEAU RECORD ! '+txt;
+  } else {
+    txt+=' — Record : vague '+b.wave+' · '+b.score;
+  }
+  document.getElementById('overText').textContent=txt;
+  refreshBest();
   document.getElementById('btnReplay').classList.toggle('hidden', ROLE!=='host');
   show('scrOver');
 }
@@ -1575,6 +1706,20 @@ function bindUI(){
     }
   };
   g('joinCode').addEventListener('input',e=>{ e.target.value=e.target.value.toUpperCase(); });
+
+  // bouton son 🔊/🔇
+  const sb=g('sndBtn');
+  sb.textContent = muted? '🔇':'🔊';
+  sb.addEventListener('click', ()=>{
+    muted=!muted;
+    sb.textContent = muted? '🔇':'🔊';
+    try{ localStorage.setItem('iamaMuted', muted?'1':'0'); }catch(e){}
+    if(!muted) SND.pop();
+  });
+  // déblocage de l'audio au premier toucher (règle des navigateurs mobiles)
+  const unlock=()=>{ ac(); };
+  document.addEventListener('touchstart', unlock, {once:true});
+  document.addEventListener('mousedown', unlock, {once:true});
 }
 
 /* ===================== UTILS ===================== */
@@ -1598,6 +1743,7 @@ window.__press=function(k){ input[k]=true; };
 initThree();
 initControls();
 bindUI();
+refreshBest();
 show('scrMenu');
 if(location.hash==='#solo') setTimeout(()=>window.__startSolo(),300);
 requestAnimationFrame(loop);
