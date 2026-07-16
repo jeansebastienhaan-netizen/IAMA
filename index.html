@@ -157,7 +157,7 @@
 <!-- ===== ÉCRAN : Choix du personnage ===== -->
 <div id="scrChar" class="screen hidden">
   <h1 style="font-size:6.6vw">Qui es-tu ?</h1>
-  <p class="tag" id="charTag">Chaque héros a sa propre arme !</p>
+  <p class="tag" id="charTag">Chaque héros a sa propre arme !<br><small style="color:#8a97b0">Et Agapos 🥺 attendrit les monstres qui s'approchent trop de lui…</small></p>
   <div id="charCards"></div>
   <div class="err" id="charErr"></div>
   <button class="btn gray small" id="btnBackChar">Retour</button>
@@ -283,7 +283,8 @@ function initThree() {
   camera = new THREE.PerspectiveCamera(52, window.innerWidth/window.innerHeight, 0.1, 200);
   positionCamera();
 
-  scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+  scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+  scene.add(new THREE.HemisphereLight(0xbfe3ff, 0x6aa84f, 0.45));
   const sun = new THREE.DirectionalLight(0xffffff, 0.7);
   sun.position.set(20, 40, 18);
   scene.add(sun);
@@ -326,6 +327,62 @@ function makeCreeperFace(){
   const t=new THREE.CanvasTexture(c); t.magFilter=THREE.NearestFilter; return t;
 }
 let CREEPER_TEX=null;
+const clouds=[];
+
+/* ----- Visages personnalisés (pixel-art) ----- */
+function makeFaceTexture(kind){
+  const c=document.createElement('canvas'); c.width=c.height=64;
+  const g=c.getContext('2d');
+  g.fillStyle = kind==='zombie' ? '#4a7c48' : '#d8a679';
+  g.fillRect(0,0,64,64);
+  for(let i=0;i<60;i++){ g.fillStyle='rgba(0,0,0,0.05)'; g.fillRect((i*19)%64,(i*31)%64,3,3); }
+  if(kind==='israel'){
+    // lunettes de soleil de star ✨
+    g.fillStyle='#111'; g.fillRect(6,20,52,4);
+    g.fillRect(10,18,18,12); g.fillRect(36,18,18,12);
+    g.fillStyle='#4dd0e1'; g.fillRect(12,20,5,3); g.fillRect(38,20,5,3);
+    // sourire charmeur en coin
+    g.fillStyle='#8d5524'; g.fillRect(24,44,18,4); g.fillRect(40,41,4,4);
+  } else if(kind==='antipas'){
+    // lunettes rondes de petit génie
+    g.strokeStyle='#fff'; g.lineWidth=3;
+    g.strokeRect(12,18,16,14); g.strokeRect(36,18,16,14);
+    g.fillStyle='#fff'; g.fillRect(28,23,8,3);
+    g.fillStyle='#1a237e'; g.fillRect(17,23,6,6); g.fillRect(41,23,6,6);
+    g.fillStyle='#8d5524'; g.fillRect(26,45,12,3);
+  } else if(kind==='maranatha'){
+    // sourcils déterminés + bandana
+    g.fillStyle='#c62828'; g.fillRect(0,2,64,8);
+    g.fillStyle='#ffeb3b'; g.fillRect(28,3,8,6);
+    g.fillStyle='#3e2723';
+    g.save(); g.translate(20,16); g.rotate(0.3); g.fillRect(-8,0,16,4); g.restore();
+    g.save(); g.translate(44,16); g.rotate(-0.3); g.fillRect(-8,0,16,4); g.restore();
+    g.fillStyle='#fff'; g.fillRect(13,22,12,8); g.fillRect(39,22,12,8);
+    g.fillStyle='#3e2723'; g.fillRect(18,24,6,6); g.fillRect(40,24,6,6);
+    g.fillStyle='#8d5524'; g.fillRect(24,44,16,4);
+  } else if(kind==='agapos'){
+    // ÉNORMES yeux tout mignons 🥺
+    g.fillStyle='#fff'; g.fillRect(8,16,20,20); g.fillRect(36,16,20,20);
+    g.fillStyle='#4e342e'; g.fillRect(12,20,13,14); g.fillRect(40,20,13,14);
+    g.fillStyle='#fff'; g.fillRect(14,22,5,5); g.fillRect(42,22,5,5);
+    g.fillRect(21,29,3,3); g.fillRect(49,29,3,3);
+    g.fillStyle='#f48fb1'; g.fillRect(4,40,12,7); g.fillRect(48,40,12,7);
+    g.fillStyle='#8d5524'; g.fillRect(27,46,10,5);
+  } else if(kind==='maman'){
+    g.fillStyle='#4e342e'; g.fillRect(14,20,10,8); g.fillRect(40,20,10,8);
+    g.fillStyle='#e57373'; g.fillRect(6,36,10,6); g.fillRect(48,36,10,6);
+    g.fillStyle='#c62828'; g.fillRect(24,44,16,5);
+  } else if(kind==='zombie'){
+    g.fillStyle='#0d0d0d'; g.fillRect(12,18,12,10); g.fillRect(40,18,12,10);
+    g.fillStyle='#2e5d2e'; g.fillRect(20,42,24,6); g.fillRect(24,48,6,4); g.fillRect(34,48,6,4);
+  }
+  const t=new THREE.CanvasTexture(c); t.magFilter=THREE.NearestFilter; return t;
+}
+function headMats(kind){
+  const skin = kind==='zombie'? 0x4a7c48 : 0xd8a679;
+  const side=new THREE.MeshLambertMaterial({color:skin});
+  return [side,side,side,side,new THREE.MeshLambertMaterial({map:makeFaceTexture(kind)}),side];
+}
 
 function buildArena(){
   const ground = new THREE.Mesh(
@@ -343,6 +400,41 @@ function buildArena(){
     }
   }
   CREEPER_TEX = makeCreeperFace();
+
+  /* --- fleurs et herbes dans l'arène --- */
+  const flowerColors=[0xf44336,0xffeb3b,0xffffff,0xba68c8];
+  for(let i=0;i<26;i++){
+    let fx=rand(-HALF,HALF), fz=rand(-HALF,HALF);
+    if(Math.hypot(fx,fz)<6){ fx=fx<0?fx-8:fx+8; fz=fz<0?fz-6:fz+6; fx=clamp(fx,-HALF,HALF); fz=clamp(fz,-HALF,HALF); }
+    const st=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.35,0.1), new THREE.MeshLambertMaterial({color:0x2e7d32}));
+    st.position.set(fx,0.17,fz); scene.add(st);
+    const f=new THREE.Mesh(new THREE.BoxGeometry(0.24,0.24,0.24),
+      new THREE.MeshLambertMaterial({color:flowerColors[i%4]}));
+    f.position.set(fx,0.42,fz); scene.add(f);
+  }
+
+  /* --- arbres façon Minecraft au-delà des murs --- */
+  const treePos=[[-30,-14],[28,-20],[-26,18],[30,16],[-14,-30],[12,30],[34,-2],[-34,2]];
+  for(const [tx,tz] of treePos){
+    const trunk=new THREE.Mesh(new THREE.BoxGeometry(1.4,5,1.4), new THREE.MeshLambertMaterial({color:0x6d4c1b}));
+    trunk.position.set(tx,2.5,tz); scene.add(trunk);
+    const leaves=new THREE.Mesh(new THREE.BoxGeometry(4.6,3.2,4.6), new THREE.MeshLambertMaterial({color:0x388e3c}));
+    leaves.position.set(tx,6.2,tz); scene.add(leaves);
+    const leaves2=new THREE.Mesh(new THREE.BoxGeometry(3.0,1.6,3.0), new THREE.MeshLambertMaterial({color:0x43a047}));
+    leaves2.position.set(tx,8.2,tz); scene.add(leaves2);
+  }
+
+  /* --- nuages qui dérivent --- */
+  for(let i=0;i<5;i++){
+    const cl=new THREE.Group();
+    for(let j=0;j<3;j++){
+      const b=new THREE.Mesh(new THREE.BoxGeometry(4+j*2,1,3), new THREE.MeshLambertMaterial({color:0xffffff}));
+      b.position.set(rand(-2.5,2.5), rand(-0.4,0.4), rand(-1.2,1.2));
+      cl.add(b);
+    }
+    cl.position.set(rand(-44,44), rand(17,24), rand(-30,8));
+    scene.add(cl); clouds.push(cl);
+  }
 
   // Agapos 💛 — le PNJ à protéger, au centre
   agaposMesh = makeAgaposMesh();
@@ -365,20 +457,29 @@ function makeAgaposMesh(){
   // socle
   const ped=new THREE.Mesh(new THREE.BoxGeometry(3.4,0.5,3.4), new THREE.MeshLambertMaterial({color:0x9e9e9e}));
   ped.position.y=0.25; g.add(ped);
-  // robe brune de villageois
-  const robe=new THREE.Mesh(new THREE.BoxGeometry(1.0,1.5,0.7), new THREE.MeshLambertMaterial({color:0x795548}));
-  robe.position.y=1.25; g.add(robe);
-  // bras croisés (bande verte façon villageois)
-  const arms=new THREE.Mesh(new THREE.BoxGeometry(1.3,0.32,0.5), new THREE.MeshLambertMaterial({color:0x5d4037}));
-  arms.position.y=1.65; g.add(arms);
-  // tête + gros nez
-  const head=new THREE.Mesh(new THREE.BoxGeometry(0.8,0.9,0.8), new THREE.MeshLambertMaterial({color:0xd8a679}));
-  head.position.y=2.45; g.add(head);
-  const nose=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.5,0.18), new THREE.MeshLambertMaterial({color:0xc79268}));
-  nose.position.set(0,2.35,0.45); g.add(nose);
-  // cœur au-dessus
+  // petits pieds
+  for(const dx of [-0.2,0.2]){
+    const f=new THREE.Mesh(new THREE.BoxGeometry(0.25,0.22,0.32), new THREE.MeshLambertMaterial({color:0x6d4c1b}));
+    f.position.set(dx,0.6,0.04); g.add(f);
+  }
+  // petit corps tout rond en salopette
+  const robe=new THREE.Mesh(new THREE.BoxGeometry(0.85,0.85,0.6), new THREE.MeshLambertMaterial({color:0xffb74d}));
+  robe.position.y=1.05; g.add(robe);
+  const strap=new THREE.Mesh(new THREE.BoxGeometry(0.87,0.2,0.62), new THREE.MeshLambertMaterial({color:0x5c9ce6}));
+  strap.position.y=1.35; g.add(strap);
+  // petits bras
+  for(const dx of [-0.52,0.52]){
+    const a=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.5,0.2), new THREE.MeshLambertMaterial({color:0xd8a679}));
+    a.position.set(dx,1.1,0); g.add(a);
+  }
+  // GROSSE tête adorable avec yeux immenses 🥺
+  const head=new THREE.Mesh(new THREE.BoxGeometry(1.05,1.0,1.0), headMats('agapos'));
+  head.position.y=2.0; g.add(head);
+  // petite houppette
+  const tuft=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.3,0.2), new THREE.MeshLambertMaterial({color:0x6d4c1b}));
+  tuft.position.set(0.1,2.6,0); tuft.rotation.z=0.3; g.add(tuft);
   const lbl=makeLabel('Agapos 💛','#ffd54f',3.0);
-  lbl.position.y=3.6; g.add(lbl);
+  lbl.position.y=3.4; g.add(lbl);
   g.userData.head=head;
   return g;
 }
@@ -390,7 +491,7 @@ function makeMamanMesh(){
   const belt=new THREE.Mesh(new THREE.BoxGeometry(1.35,0.25,0.95), new THREE.MeshLambertMaterial({color:0xf48fb1}));
   belt.position.y=1.7; g.add(belt);
   // tête + chignon
-  const head=new THREE.Mesh(new THREE.BoxGeometry(0.85,0.85,0.85), new THREE.MeshLambertMaterial({color:0xd8a679}));
+  const head=new THREE.Mesh(new THREE.BoxGeometry(0.85,0.85,0.85), headMats('maman'));
   head.position.y=2.6; g.add(head);
   const bun=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.4,0.5), new THREE.MeshLambertMaterial({color:0x4e342e}));
   bun.position.set(0,3.15,-0.15); g.add(bun);
@@ -411,20 +512,34 @@ function makePlayerMesh(charKey, name){
   legs.position.y=0.45; g.add(legs);
   const body = new THREE.Mesh(new THREE.BoxGeometry(0.9,0.9,0.55), new THREE.MeshLambertMaterial({color:ch.color}));
   body.position.y=1.35; g.add(body);
-  const head = new THREE.Mesh(new THREE.BoxGeometry(0.75,0.75,0.75), new THREE.MeshLambertMaterial({color:0xd8a679}));
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.75,0.75,0.75), headMats(charKey));
   head.position.y=2.15; g.add(head);
-  // accessoire par héros
-  if(charKey==='israel'){ // lunettes de soleil 😎
-    const sg=new THREE.Mesh(new THREE.BoxGeometry(0.7,0.18,0.1), new THREE.MeshLambertMaterial({color:0x111111}));
-    sg.position.set(0,2.25,0.4); g.add(sg);
-  } else if(charKey==='antipas'){ // casque/antenne de génie
+  // accessoires et style par héros
+  if(charKey==='israel'){ // 😎 coiffure de star + cœur sur le t-shirt
+    const hair=new THREE.Mesh(new THREE.BoxGeometry(0.82,0.22,0.82), new THREE.MeshLambertMaterial({color:0x4e342e}));
+    hair.position.y=2.62; g.add(hair);
+    const fringe=new THREE.Mesh(new THREE.BoxGeometry(0.82,0.2,0.2), new THREE.MeshLambertMaterial({color:0x4e342e}));
+    fringe.position.set(0,2.52,0.34); fringe.rotation.x=0.25; g.add(fringe);
+    const heart=new THREE.Mesh(new THREE.BoxGeometry(0.22,0.22,0.08), new THREE.MeshBasicMaterial({color:0xff4d88}));
+    heart.rotation.z=Math.PI/4; heart.position.set(0.16,1.5,0.31); g.add(heart);
+    const collar=new THREE.Mesh(new THREE.BoxGeometry(0.92,0.14,0.57), new THREE.MeshLambertMaterial({color:0xffffff}));
+    collar.position.y=1.78; g.add(collar); // col de chemise ouvert
+  } else if(charKey==='antipas'){ // 🧠 casquette d'inventeur + antenne + sacoche
     const cap=new THREE.Mesh(new THREE.BoxGeometry(0.8,0.2,0.8), new THREE.MeshLambertMaterial({color:0x1565c0}));
     cap.position.y=2.6; g.add(cap);
+    const visor=new THREE.Mesh(new THREE.BoxGeometry(0.6,0.08,0.3), new THREE.MeshLambertMaterial({color:0x0d47a1}));
+    visor.position.set(0,2.53,0.5); g.add(visor);
     const ant=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.5,0.07), new THREE.MeshLambertMaterial({color:0x90caf9}));
     ant.position.set(0,2.9,0); g.add(ant);
     const bulb=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.16,0.16), new THREE.MeshBasicMaterial({color:0xfff176}));
     bulb.position.set(0,3.2,0); g.add(bulb);
-  } else { // épée de Maranatha
+    const bag=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.4,0.2), new THREE.MeshLambertMaterial({color:0x6d4c1b}));
+    bag.position.set(-0.55,1.2,0.1); g.add(bag); // sacoche à gadgets
+  } else { // 🦁 cheveux + cape de héros + épée
+    const hair=new THREE.Mesh(new THREE.BoxGeometry(0.82,0.2,0.82), new THREE.MeshLambertMaterial({color:0x212121}));
+    hair.position.y=2.62; g.add(hair);
+    const cape=new THREE.Mesh(new THREE.BoxGeometry(0.88,1.3,0.1), new THREE.MeshLambertMaterial({color:0xc62828}));
+    cape.position.set(0,1.3,-0.38); g.add(cape);
     const blade=new THREE.Mesh(new THREE.BoxGeometry(0.14,1.3,0.14), new THREE.MeshLambertMaterial({color:0xcfd8dc}));
     blade.position.set(0.6,1.7,0.25); g.add(blade);
     const hilt=new THREE.Mesh(new THREE.BoxGeometry(0.4,0.12,0.16), new THREE.MeshLambertMaterial({color:0x6d4c1b}));
@@ -464,7 +579,7 @@ function makeEnemyMesh(type){
     legs.position.y=0.42; g.add(legs);
     const body=new THREE.Mesh(new THREE.BoxGeometry(0.9,0.85,0.55), new THREE.MeshLambertMaterial({color:0x3a7d44}));
     body.position.y=1.28; g.add(body);
-    const head=new THREE.Mesh(new THREE.BoxGeometry(0.75,0.75,0.75), new THREE.MeshLambertMaterial({color:0x4a7c48}));
+    const head=new THREE.Mesh(new THREE.BoxGeometry(0.75,0.75,0.75), headMats('zombie'));
     head.position.y=2.05; g.add(head);
     const arm=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.3,0.9), new THREE.MeshLambertMaterial({color:0x4a7c48}));
     arm.position.set(0,1.5,0.6); g.add(arm);
@@ -507,7 +622,7 @@ function makeTurretMesh(){
 function newSim(){
   return {
     phase:'prep', phaseT:3, wave:0, score:0, coins:0,
-    baseHp:BASE_MAXHP,
+    baseHp:BASE_MAXHP, agaposCd:8,
     players:{}, enemies:[], arrows:[], walls:[], turrets:[],
     maman:null,             // {t, x, z}
     toSpawn:0, spawnT:0, nextId:1, events:[],
@@ -515,7 +630,7 @@ function newSim(){
 }
 function addPlayerToSim(id, name, charKey){
   const idx = Object.keys(sim.players).length % 3;
-  const ang = idx/3 * Math.PI*2 + Math.PI/6;
+  const ang = idx/3 * Math.PI*2 + Math.PI/2;
   const ch = CHARS[charKey];
   sim.players[id] = {
     x: Math.cos(ang)*8, z: Math.sin(ang)*8, hp:ch.maxhp, char:charKey, colorIdx:idx,
@@ -567,6 +682,20 @@ function simStep(dt){
     if(m.t<=0){ s.maman=null; }
   }
 
+  /* --- Bouille d'Amour d'Agapos 🥺 (faculté de base du petit mignon) --- */
+  s.agaposCd-=dt;
+  if(s.agaposCd<=0){
+    let n=0;
+    for(const e of s.enemies){ if(Math.hypot(e.x,e.z)<8.5){ e.charmT=Math.max(e.charmT||0,2.5); n++; } }
+    if(n>0){
+      // sa mignonnerie soigne aussi les héros proches
+      for(const id in s.players){ const p=s.players[id];
+        if(p.alive && Math.hypot(p.x,p.z)<8.5) p.hp=Math.min(CHARS[p.char].maxhp, p.hp+15); }
+      s.events.push({e:'agapos'});
+      s.agaposCd=10;
+    } else { s.agaposCd=1.5; } // personne à attendrir, on re-regarde bientôt
+  }
+
   /* --- joueurs --- */
   for(const id in s.players){
     const p=s.players[id];
@@ -574,7 +703,7 @@ function simStep(dt){
     if(!p.alive){
       p.respawn-=dt;
       if(p.respawn<=0){ p.alive=true; p.hp=ch.maxhp;
-        const a=p.colorIdx/3*Math.PI*2+Math.PI/6; p.x=Math.cos(a)*10; p.z=Math.sin(a)*10; }
+        const a=p.colorIdx/3*Math.PI*2+Math.PI/2; p.x=Math.cos(a)*10; p.z=Math.sin(a)*10; }
       continue;
     }
     if(p.rageT>0) p.rageT-=dt;
@@ -863,8 +992,11 @@ function loop(t){
 /* ===================== RENDU ===================== */
 function renderScene(dt){
   if(agaposMesh && agaposMesh.userData.head){
-    agaposMesh.userData.head.rotation.y = Math.sin(lastT*0.0012)*0.5; // Agapos regarde autour de lui
+    // Agapos regarde autour de lui et sautille, tout mignon
+    agaposMesh.userData.head.rotation.y = Math.sin(lastT*0.0012)*0.5;
+    agaposMesh.userData.head.position.y = 2.0 + Math.abs(Math.sin(lastT*0.004))*0.1;
   }
+  for(const cl of clouds){ cl.position.x += dt*1.1; if(cl.position.x>48) cl.position.x=-48; }
   if(!snap){ renderer.render(scene,camera); return; }
 
   // joueurs
@@ -962,6 +1094,7 @@ function handleEvents(evs){
     else if(ev.e==='turret') showBanner('🤖 TOURELLE !', '#90caf9');
     else if(ev.e==='rage') showBanner('🦁 CRI DE COURAGE !', '#ff5252');
     else if(ev.e==='wall') spawnAura(ev.x,ev.z,0xbcaaa4);
+    else if(ev.e==='agapos') { showBanner('🥺 BOUILLE D\'AMOUR !', '#ffd54f'); spawnRing(0,0,0xffd54f); spawnAura(0,0,0xff4d88); }
     else if(ev.e==='maman') showBanner('👩‍🍳 MAMAN ARRIVE !', '#f48fb1');
     else if(ev.e==='mamanSweep') showBanner('🧹 TOUT LE MONDE DEHORS !', '#f48fb1');
     else if(ev.e==='over') triggerOver(ev.wave, ev.score);
@@ -1131,7 +1264,7 @@ function genCode(){
   let c=''; for(let i=0;i<4;i++) c+=letters[Math.floor(Math.random()*letters.length)];
   return c;
 }
-const PREFIX='mccsv3-';
+const PREFIX='mccsv4-';
 
 function hostCreate(){
   roomCode=genCode();
@@ -1339,6 +1472,7 @@ window.__startSolo=function(charKey){
   pickChar(charKey||'maranatha');
 };
 window.__cheat=function(n){ if(sim) sim.coins+=(n||50); };
+window.__getSim=function(){ return sim; };
 window.__press=function(k){ input[k]=true; };
 
 /* ===================== DÉMARRAGE ===================== */
