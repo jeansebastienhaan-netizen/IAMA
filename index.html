@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<title>Creeper Survival — Israël · Antipas · Maranatha</title>
+<title>Savane Survival — Israël · Antipas · Maranatha en Ouganda</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -142,8 +142,8 @@
     </div>
   </div>
   <div class="panel hidden" id="bossWrap">
-    <div class="base-title" style="color:#d05ce3">🐉 BOSS</div>
-    <div class="bar"><span id="bossBar" style="background:linear-gradient(90deg,#7b1fa2,#d05ce3)"></span></div>
+    <div class="base-title" style="color:#8bc34a">🐊 CROCO GÉANT</div>
+    <div class="bar"><span id="bossBar" style="background:linear-gradient(90deg,#33691e,#8bc34a)"></span></div>
   </div>
   <div id="plist"></div>
   <div id="banner"></div>
@@ -160,18 +160,22 @@
   <div id="hint">Joystick = bouger · L'attaque est automatique !</div>
   <div id="shop" class="hidden">
     <div class="shop-head"><span>🛒 Boutique</span><span id="shopCoins">🪙 0</span><button class="sx" id="shopClose">✖</button></div>
-    <div class="shop-item" data-key="wall" data-cost="5"><span class="se">🧱</span><span><div class="sn">Mur</div><div class="sd">Bloque les monstres devant toi</div></span><span class="sc">5🪙</span></div>
+    <div class="shop-item" data-key="wall" data-cost="5"><span class="se">🧱</span><span><div class="sn">Mur</div><div class="sd">Bloque les animaux devant toi</div></span><span class="sc">5🪙</span></div>
     <div class="shop-item" data-key="rampart" data-cost="15"><span class="se">🏰</span><span><div class="sn">Muraille</div><div class="sd">Longue et 3x plus solide</div></span><span class="sc">15🪙</span></div>
     <div class="shop-item" data-key="tower" data-cost="25"><span class="se">🗼</span><span><div class="sn">Tour de garde</div><div class="sd">Tire toute seule, pour toujours (max 2)</div></span><span class="sc">25🪙</span></div>
-    <div class="shop-item" data-key="trap" data-cost="8"><span class="se">💣</span><span><div class="sn">Piège TNT</div><div class="sd">Explose au passage d'un monstre</div></span><span class="sc">8🪙</span></div>
+    <div class="shop-item" data-key="trap" data-cost="8"><span class="se">💣</span><span><div class="sn">Piège TNT</div><div class="sd">Explose au passage d'un animal</div></span><span class="sc">8🪙</span></div>
     <div class="shop-item" data-key="heal" data-cost="20"><span class="se">💛</span><span><div class="sn">Câlin pour Agapos</div><div class="sd">Lui redonne 60 points de vie</div></span><span class="sc">20🪙</span></div>
+    <div style="border-top:1px solid rgba(120,140,170,.4); margin:8px 0 4px; padding-top:4px; font-size:12px; color:#9fb0cc; text-align:left">⚔️ Améliorations (rien que pour toi)</div>
+    <div class="shop-item" data-key="updmg"><span class="se">⚔️</span><span><div class="sn" id="updmgN">Force +1</div><div class="sd">Tes attaques font +1 dégât</div></span><span class="sc" id="updmgC">12🪙</span></div>
+    <div class="shop-item" data-key="upspd"><span class="se">👟</span><span><div class="sn" id="upspdN">Vitesse +12%</div><div class="sd">Tu cours plus vite</div></span><span class="sc" id="upspdC">10🪙</span></div>
+    <div class="shop-item" data-key="uphp"><span class="se">❤️</span><span><div class="sn" id="uphpN">Cœur d'or +25 PV</div><div class="sd">Vie max augmentée (et soignée)</div></span><span class="sc" id="uphpC">10🪙</span></div>
   </div>
 </div>
 
 <!-- ===== ÉCRAN : Menu ===== -->
 <div id="scrMenu" class="screen">
-  <h1>CREEPER<span class="sub">SURVIVAL · COOP</span></h1>
-  <p class="tag">Israël · Antipas · Maranatha<br>Protégez Agapos ! 💛</p>
+  <h1>SAVANE<span class="sub">SURVIVAL · OUGANDA 🇺🇬</span></h1>
+  <p class="tag">Israël · Antipas · Maranatha<br>Protégez Agapos des animaux sauvages ! 💛</p>
   <button class="btn green" id="btnCreate">🏰 Créer une partie</button>
   <button class="btn blue" id="btnJoin">🔑 Rejoindre une partie</button>
   <button class="btn gray small" id="btnSolo">🎯 Entraînement solo</button>
@@ -224,6 +228,7 @@
 <div id="scrOver" class="screen hidden">
   <h1 style="color:#e74c3c">💥 GAME OVER</h1>
   <p class="tag" id="overText"></p>
+  <ul class="players-list" id="overStats"></ul>
   <button class="btn green" id="btnReplay">🔁 Rejouer</button>
   <button class="btn gray small" id="btnQuit">Menu principal</button>
 </div>
@@ -273,6 +278,14 @@ const SHOP = {
   trap:    { cost:8,  can:s=>s.traps.length<6 },
   heal:    { cost:20, can:s=>s.baseHp<BASE_MAXHP },
 };
+/* Améliorations personnelles ⚔️ — prix croissants */
+const UPG = {
+  updmg: { key:'d', base:12, max:6 },
+  upspd: { key:'s', base:10, max:3 },
+  uphp:  { key:'h', base:10, max:4 },
+};
+function upgPrice(cfg, lvl){ return Math.round(cfg.base*Math.pow(1.6, lvl)); }
+function pMax(p){ return CHARS[p.char].maxhp + 25*(p.up?p.up.h:0); }
 
 /* ----- Les 3 héros ----- */
 const CHARS = {
@@ -327,7 +340,11 @@ const input={ mx:0, mz:0, ab:false, buy:null, mom:false };
 let sim=null, running=false, lastNet=0;
 
 /* ===================== THREE.JS ===================== */
-let renderer, scene, camera;
+let renderer, scene, camera, ambLight, sunLight, dayMix=0;
+function lerpHex(c1,c2,t){
+  const r1=(c1>>16)&255,g1=(c1>>8)&255,b1=c1&255, r2=(c2>>16)&255,g2=(c2>>8)&255,b2=c2&255;
+  return ((Math.round(r1+(r2-r1)*t)<<16) | (Math.round(g1+(g2-g1)*t)<<8) | Math.round(b1+(b2-b1)*t));
+}
 const meshes = { players:{}, enemies:{}, arrows:{}, walls:{}, turrets:{}, traps:{} };
 let agaposMesh=null, mamanMesh=null;
 
@@ -345,11 +362,11 @@ function initThree() {
   camera = new THREE.PerspectiveCamera(52, window.innerWidth/window.innerHeight, 0.1, 200);
   positionCamera();
 
-  scene.add(new THREE.AmbientLight(0xffffff, 0.55));
-  scene.add(new THREE.HemisphereLight(0xbfe3ff, 0x6aa84f, 0.45));
-  const sun = new THREE.DirectionalLight(0xffffff, 0.7);
-  sun.position.set(20, 40, 18);
-  scene.add(sun);
+  ambLight = new THREE.AmbientLight(0xffffff, 0.55); scene.add(ambLight);
+  scene.add(new THREE.HemisphereLight(0xffe8c0, 0x8a7a3a, 0.45));
+  sunLight = new THREE.DirectionalLight(0xfff3d6, 0.7);
+  sunLight.position.set(20, 40, 18);
+  scene.add(sunLight);
 
   buildArena();
   window.addEventListener('resize', onResize);
@@ -367,14 +384,17 @@ function onResize(){
   renderer.setSize(window.innerWidth, window.innerHeight);
 }
 function makeGrassTexture(){
+  // herbe sèche de savane ougandaise
   const c = document.createElement('canvas'); c.width=c.height=64;
   const g = c.getContext('2d');
-  g.fillStyle='#5a9e3f'; g.fillRect(0,0,64,64);
+  g.fillStyle='#b3a054'; g.fillRect(0,0,64,64);
   for(let i=0;i<420;i++){
-    const shades=['#4f8f37','#69b04a','#568f3c','#61a844'];
+    const shades=['#a8964a','#bfae62','#9c8c40','#c4b36a','#8f9948'];
     g.fillStyle=shades[i%shades.length];
     g.fillRect((i*13)%64,(i*29)%64,3,3);
   }
+  // plaques de terre ocre
+  for(let i=0;i<7;i++){ g.fillStyle='#a5764a'; g.fillRect((i*23)%56,(i*37)%56,7,5); }
   const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(ARENA/2,ARENA/2);
   t.magFilter=THREE.NearestFilter; return t;
 }
@@ -463,27 +483,43 @@ function buildArena(){
   }
   CREEPER_TEX = makeCreeperFace();
 
-  /* --- fleurs et herbes dans l'arène --- */
-  const flowerColors=[0xf44336,0xffeb3b,0xffffff,0xba68c8];
+  /* --- touffes d'herbe sèche et buissons de savane --- */
   for(let i=0;i<26;i++){
     let fx=rand(-HALF,HALF), fz=rand(-HALF,HALF);
     if(Math.hypot(fx,fz)<6){ fx=fx<0?fx-8:fx+8; fz=fz<0?fz-6:fz+6; fx=clamp(fx,-HALF,HALF); fz=clamp(fz,-HALF,HALF); }
-    const st=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.35,0.1), new THREE.MeshLambertMaterial({color:0x2e7d32}));
-    st.position.set(fx,0.17,fz); scene.add(st);
-    const f=new THREE.Mesh(new THREE.BoxGeometry(0.24,0.24,0.24),
-      new THREE.MeshLambertMaterial({color:flowerColors[i%4]}));
-    f.position.set(fx,0.42,fz); scene.add(f);
+    if(i%3===0){ // buisson vert olive
+      const b=new THREE.Mesh(new THREE.BoxGeometry(0.6,0.45,0.6), new THREE.MeshLambertMaterial({color:0x6b7c32}));
+      b.position.set(fx,0.22,fz); scene.add(b);
+    } else { // touffe d'herbe jaune
+      const st=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.5,0.12), new THREE.MeshLambertMaterial({color:0xc4b36a}));
+      st.position.set(fx,0.25,fz); st.rotation.z=rand(-0.2,0.2); scene.add(st);
+      const st2=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.38,0.12), new THREE.MeshLambertMaterial({color:0xa8964a}));
+      st2.position.set(fx+0.15,0.19,fz); st2.rotation.z=rand(-0.3,0.1); scene.add(st2);
+    }
   }
 
-  /* --- arbres façon Minecraft au-delà des murs --- */
+  /* --- termitières dans l'arène --- */
+  for(const [tx,tz] of [[-14,9],[13,-11],[8,15]]){
+    const m1=new THREE.Mesh(new THREE.BoxGeometry(1.4,1.0,1.4), new THREE.MeshLambertMaterial({color:0x9a6b3f}));
+    m1.position.set(tx,0.5,tz); scene.add(m1);
+    const m2=new THREE.Mesh(new THREE.BoxGeometry(0.9,0.9,0.9), new THREE.MeshLambertMaterial({color:0xa5764a}));
+    m2.position.set(tx,1.35,tz); scene.add(m2);
+    const m3=new THREE.Mesh(new THREE.BoxGeometry(0.45,0.7,0.45), new THREE.MeshLambertMaterial({color:0x8a5c34}));
+    m3.position.set(tx,2.05,tz); scene.add(m3);
+  }
+
+  /* --- acacias à cime plate au-delà des murs --- */
   const treePos=[[-30,-14],[28,-20],[-26,18],[30,16],[-14,-30],[12,30],[34,-2],[-34,2]];
   for(const [tx,tz] of treePos){
-    const trunk=new THREE.Mesh(new THREE.BoxGeometry(1.4,5,1.4), new THREE.MeshLambertMaterial({color:0x6d4c1b}));
-    trunk.position.set(tx,2.5,tz); scene.add(trunk);
-    const leaves=new THREE.Mesh(new THREE.BoxGeometry(4.6,3.2,4.6), new THREE.MeshLambertMaterial({color:0x388e3c}));
-    leaves.position.set(tx,6.2,tz); scene.add(leaves);
-    const leaves2=new THREE.Mesh(new THREE.BoxGeometry(3.0,1.6,3.0), new THREE.MeshLambertMaterial({color:0x43a047}));
-    leaves2.position.set(tx,8.2,tz); scene.add(leaves2);
+    const trunk=new THREE.Mesh(new THREE.BoxGeometry(0.9,5.5,0.9), new THREE.MeshLambertMaterial({color:0x7a5230}));
+    trunk.position.set(tx,2.75,tz); trunk.rotation.z=rand(-0.08,0.08); scene.add(trunk);
+    const branch=new THREE.Mesh(new THREE.BoxGeometry(2.6,0.4,0.5), new THREE.MeshLambertMaterial({color:0x6d4a2a}));
+    branch.position.set(tx+0.8,4.6,tz); branch.rotation.z=0.5; scene.add(branch);
+    // cime plate et large, typique de la savane
+    const canopy=new THREE.Mesh(new THREE.BoxGeometry(6.5,0.9,6.5), new THREE.MeshLambertMaterial({color:0x4a6b2a}));
+    canopy.position.set(tx,6.0,tz); scene.add(canopy);
+    const canopy2=new THREE.Mesh(new THREE.BoxGeometry(4.2,0.7,4.2), new THREE.MeshLambertMaterial({color:0x5a7d34}));
+    canopy2.position.set(tx,6.8,tz); scene.add(canopy2);
   }
 
   /* --- nuages qui dérivent --- */
@@ -613,26 +649,39 @@ function makePlayerMesh(charKey, name){
   return g;
 }
 function makeBossMesh(){
+  // 🐊 crocodile géant du Nil
   const g=new THREE.Group();
-  const mat=new THREE.MeshLambertMaterial({color:0x2e1a47});
-  const wingMat=new THREE.MeshLambertMaterial({color:0x1a0f2e});
-  const body=new THREE.Mesh(new THREE.BoxGeometry(2.6,1.6,3.4), mat);
-  body.position.y=2.0; g.add(body);
-  const head=new THREE.Mesh(new THREE.BoxGeometry(1.4,1.2,1.6), mat);
-  head.position.set(0,2.6,2.2); g.add(head);
-  for(const dx of [-0.4,0.4]){
-    const e=new THREE.Mesh(new THREE.BoxGeometry(0.28,0.2,0.1), new THREE.MeshBasicMaterial({color:0xd05ce3}));
-    e.position.set(dx,2.75,3.02); g.add(e);
+  const mat=new THREE.MeshLambertMaterial({color:0x4a7233});
+  const darkMat=new THREE.MeshLambertMaterial({color:0x38571f});
+  const body=new THREE.Mesh(new THREE.BoxGeometry(2.2,1.1,3.6), mat);
+  body.position.set(0,0.85,-0.3); g.add(body);
+  // crêtes sur le dos
+  for(const dz of [-1.4,-0.5,0.4]){
+    const r=new THREE.Mesh(new THREE.BoxGeometry(0.4,0.4,0.5), darkMat);
+    r.position.set(0,1.55,dz); g.add(r);
   }
-  for(const dx of [-0.5,0.5]){
-    const h=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.6,0.2), mat); h.position.set(dx,3.4,1.9); g.add(h);
+  // mâchoire supérieure fixe + inférieure animée
+  const snout=new THREE.Mesh(new THREE.BoxGeometry(1.3,0.5,2.2), mat);
+  snout.position.set(0,1.1,2.5); g.add(snout);
+  const jaw=new THREE.Mesh(new THREE.BoxGeometry(1.25,0.35,2.1), darkMat);
+  jaw.position.set(0,0.65,2.45); g.add(jaw);
+  g.userData.jaw=jaw;
+  // dents blanches
+  for(const dx of [-0.5,0,0.5]){
+    const t=new THREE.Mesh(new THREE.BoxGeometry(0.15,0.25,0.15), new THREE.MeshBasicMaterial({color:0xffffff}));
+    t.position.set(dx,0.88,3.4); g.add(t);
   }
-  const w1=new THREE.Mesh(new THREE.BoxGeometry(3.2,0.15,1.8), wingMat); w1.position.set(-2.4,2.9,0); g.add(w1);
-  const w2=new THREE.Mesh(new THREE.BoxGeometry(3.2,0.15,1.8), wingMat); w2.position.set(2.4,2.9,0); g.add(w2);
-  g.userData.wings=[w1,w2];
-  const tail=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.5,2.4), mat); tail.position.set(0,2.0,-2.6); g.add(tail);
-  for(const [dx,dz] of [[-0.9,1.0],[0.9,1.0],[-0.9,-1.0],[0.9,-1.0]]){
-    const l=new THREE.Mesh(new THREE.BoxGeometry(0.5,1.4,0.5), mat); l.position.set(dx,0.9,dz); g.add(l);
+  // yeux jaunes sur le dessus
+  for(const dx of [-0.45,0.45]){
+    const e=new THREE.Mesh(new THREE.BoxGeometry(0.28,0.28,0.28), new THREE.MeshBasicMaterial({color:0xffd54f}));
+    e.position.set(dx,1.5,1.5); g.add(e);
+  }
+  // queue effilée
+  const t1=new THREE.Mesh(new THREE.BoxGeometry(1.4,0.8,1.6), mat); t1.position.set(0,0.75,-2.6); g.add(t1);
+  const t2=new THREE.Mesh(new THREE.BoxGeometry(0.8,0.5,1.6), darkMat); t2.position.set(0,0.6,-3.9); g.add(t2);
+  // pattes courtes
+  for(const [dx,dz] of [[-1.2,1.0],[1.2,1.0],[-1.2,-1.4],[1.2,-1.4]]){
+    const l=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.7,0.5), darkMat); l.position.set(dx,0.35,dz); g.add(l);
   }
   return g;
 }
@@ -640,36 +689,69 @@ function makeEnemyMesh(type){
   if(type==='boss') return makeBossMesh();
   const g=new THREE.Group();
   if(type==='creeper'){
-    const body=new THREE.Mesh(new THREE.BoxGeometry(0.9,1.8,0.9),
-      [ new THREE.MeshLambertMaterial({map:CREEPER_TEX}),new THREE.MeshLambertMaterial({map:CREEPER_TEX}),
-        new THREE.MeshLambertMaterial({color:0x74c93a}),new THREE.MeshLambertMaterial({color:0x4f8f37}),
-        new THREE.MeshLambertMaterial({map:CREEPER_TEX}),new THREE.MeshLambertMaterial({map:CREEPER_TEX}) ]);
-    body.position.y=0.9; g.add(body);
-    const footMat=new THREE.MeshLambertMaterial({color:0x4f8f37});
-    for(const dx of [-0.3,0.3]) for(const dz of [-0.3,0.3]){
-      const f=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.35,0.3),footMat); f.position.set(dx,0.17,dz); g.add(f);
+    // 🐃 buffle qui charge (remplace le creeper)
+    const body=new THREE.Mesh(new THREE.BoxGeometry(1.1,1.0,1.8), new THREE.MeshLambertMaterial({color:0x3e2f23}));
+    body.position.y=1.0; g.add(body);
+    const head=new THREE.Mesh(new THREE.BoxGeometry(0.8,0.7,0.7), new THREE.MeshLambertMaterial({color:0x2e211a}));
+    head.position.set(0,1.0,1.15); g.add(head);
+    // grandes cornes claires
+    const hornMat=new THREE.MeshLambertMaterial({color:0xd7cba8});
+    for(const s of [-1,1]){
+      const h1=new THREE.Mesh(new THREE.BoxGeometry(0.55,0.18,0.18), hornMat);
+      h1.position.set(s*0.6,1.35,1.15); g.add(h1);
+      const h2=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.4,0.18), hornMat);
+      h2.position.set(s*0.85,1.55,1.15); g.add(h2);
+    }
+    for(const [dx,dz] of [[-0.4,0.6],[0.4,0.6],[-0.4,-0.6],[0.4,-0.6]]){
+      const l=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.55,0.3), new THREE.MeshLambertMaterial({color:0x2e211a}));
+      l.position.set(dx,0.27,dz); g.add(l);
     }
   } else if(type==='spider'){
-    const body=new THREE.Mesh(new THREE.BoxGeometry(1.2,0.6,1.2), new THREE.MeshLambertMaterial({color:0x2b2b2b}));
-    body.position.y=0.55; g.add(body);
-    const head=new THREE.Mesh(new THREE.BoxGeometry(0.7,0.6,0.7), new THREE.MeshLambertMaterial({color:0x1f1f1f}));
-    head.position.set(0,0.55,0.8); g.add(head);
-    for(const dx of [-0.18,0.18]){
-      const e=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.12,0.05), new THREE.MeshBasicMaterial({color:0xff2222}));
-      e.position.set(dx,0.68,1.14); g.add(e);
+    // 🐆 léopard rapide (remplace l'araignée)
+    const spotTex=(()=>{ const c=document.createElement('canvas'); c.width=c.height=32;
+      const q=c.getContext('2d'); q.fillStyle='#d4a017'; q.fillRect(0,0,32,32);
+      q.fillStyle='#5d4310'; for(let i=0;i<14;i++) q.fillRect((i*11)%30,(i*7)%30,3,3);
+      const t=new THREE.CanvasTexture(c); t.magFilter=THREE.NearestFilter; return t; })();
+    const spotMat=new THREE.MeshLambertMaterial({map:spotTex});
+    const body=new THREE.Mesh(new THREE.BoxGeometry(0.55,0.55,1.5), spotMat);
+    body.position.y=0.65; g.add(body);
+    const head=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.45,0.5), spotMat);
+    head.position.set(0,0.8,0.95); g.add(head);
+    // oreilles + yeux
+    for(const dx of [-0.15,0.15]){
+      const ear=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.12,0.08), new THREE.MeshLambertMaterial({color:0x5d4310}));
+      ear.position.set(dx,1.08,0.85); g.add(ear);
+      const e=new THREE.Mesh(new THREE.BoxGeometry(0.09,0.09,0.05), new THREE.MeshBasicMaterial({color:0x7cff6b}));
+      e.position.set(dx,0.85,1.21); g.add(e);
     }
-    const legMat=new THREE.MeshLambertMaterial({color:0x1a1a1a});
-    for(let i=0;i<4;i++){ const sgn=i<2?-1:1; const off=(i%2?0.4:-0.4);
-      const l=new THREE.Mesh(new THREE.BoxGeometry(1.1,0.12,0.12),legMat); l.position.set(sgn*0.7,0.4,off); g.add(l); }
+    const tail=new THREE.Mesh(new THREE.BoxGeometry(0.14,0.14,0.8), spotMat);
+    tail.position.set(0,0.85,-1.0); tail.rotation.x=0.4; g.add(tail);
+    for(const [dx,dz] of [[-0.2,0.55],[0.2,0.55],[-0.2,-0.55],[0.2,-0.55]]){
+      const l=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.45,0.16), spotMat);
+      l.position.set(dx,0.22,dz); g.add(l);
+    }
   } else {
-    const legs=new THREE.Mesh(new THREE.BoxGeometry(0.8,0.85,0.5), new THREE.MeshLambertMaterial({color:0x2b2b6b}));
-    legs.position.y=0.42; g.add(legs);
-    const body=new THREE.Mesh(new THREE.BoxGeometry(0.9,0.85,0.55), new THREE.MeshLambertMaterial({color:0x3a7d44}));
-    body.position.y=1.28; g.add(body);
-    const head=new THREE.Mesh(new THREE.BoxGeometry(0.75,0.75,0.75), headMats('zombie'));
-    head.position.y=2.05; g.add(head);
-    const arm=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.3,0.9), new THREE.MeshLambertMaterial({color:0x4a7c48}));
-    arm.position.set(0,1.5,0.6); g.add(arm);
+    // 🐺 hyène tachetée (remplace le zombie)
+    const bodyMat=new THREE.MeshLambertMaterial({color:0xb08d57});
+    const darkMat=new THREE.MeshLambertMaterial({color:0x6b4f2a});
+    const body=new THREE.Mesh(new THREE.BoxGeometry(0.65,0.75,1.5), bodyMat);
+    body.position.y=0.85; body.rotation.x=-0.12; g.add(body); // dos incliné typique
+    const mane=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.25,1.2), darkMat);
+    mane.position.set(0,1.32,0.1); mane.rotation.x=-0.12; g.add(mane);
+    const head=new THREE.Mesh(new THREE.BoxGeometry(0.55,0.55,0.6), bodyMat);
+    head.position.set(0,1.25,0.95); g.add(head);
+    const muzzle=new THREE.Mesh(new THREE.BoxGeometry(0.35,0.3,0.3), darkMat);
+    muzzle.position.set(0,1.12,1.35); g.add(muzzle);
+    for(const dx of [-0.18,0.18]){
+      const ear=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.22,0.08), darkMat);
+      ear.position.set(dx,1.62,0.85); g.add(ear);
+      const e=new THREE.Mesh(new THREE.BoxGeometry(0.09,0.09,0.05), new THREE.MeshBasicMaterial({color:0xff9c1a}));
+      e.position.set(dx,1.32,1.26); g.add(e);
+    }
+    for(const [dx,dz,h] of [[-0.22,0.55,0.55],[0.22,0.55,0.55],[-0.22,-0.55,0.42],[0.22,-0.55,0.42]]){
+      const l=new THREE.Mesh(new THREE.BoxGeometry(0.18,h,0.18), darkMat);
+      l.position.set(dx,h/2,dz); g.add(l);
+    }
   }
   return g;
 }
@@ -757,6 +839,7 @@ function addPlayerToSim(id, name, charKey){
   sim.players[id] = {
     x: Math.cos(ang)*8, z: Math.sin(ang)*8, hp:ch.maxhp, char:charKey, colorIdx:idx,
     name:(name||ch.name).slice(0,10), ang:0, fireCd:0, abCd:0, rageT:0, buildCd:0,
+    up:{d:0,s:0,h:0}, stats:{k:0,b:0},
     alive:true, respawn:0, inMx:0, inMz:0, inAb:false, inBuy:null, inMom:false
   };
 }
@@ -819,7 +902,7 @@ function simStep(dt){
     if(n>0){
       // sa mignonnerie soigne aussi les héros proches
       for(const id in s.players){ const p=s.players[id];
-        if(p.alive && Math.hypot(p.x,p.z)<8.5) p.hp=Math.min(CHARS[p.char].maxhp, p.hp+15); }
+        if(p.alive && Math.hypot(p.x,p.z)<8.5) p.hp=Math.min(pMax(p), p.hp+15); }
       s.events.push({e:'agapos'});
       s.agaposCd=10;
     } else { s.agaposCd=1.5; } // personne à attendrir, on re-regarde bientôt
@@ -831,12 +914,12 @@ function simStep(dt){
     const ch=CHARS[p.char];
     if(!p.alive){
       p.respawn-=dt;
-      if(p.respawn<=0){ p.alive=true; p.hp=ch.maxhp;
+      if(p.respawn<=0){ p.alive=true; p.hp=pMax(p);
         const a=p.colorIdx/3*Math.PI*2+Math.PI/2; p.x=Math.cos(a)*10; p.z=Math.sin(a)*10; }
       continue;
     }
     if(p.rageT>0) p.rageT-=dt;
-    const spdMul = ch.speed * (p.rageT>0?1.5:1);
+    const spdMul = ch.speed * (p.rageT>0?1.5:1) * (1+0.12*p.up.s);
 
     let mx=p.inMx, mz=p.inMz;
     const len=Math.hypot(mx,mz);
@@ -854,9 +937,9 @@ function simStep(dt){
       if(w.kind==='sword'){
         const t=nearestEnemy(p.x,p.z,w.range);
         if(t){
-          const dmg = w.dmg * (p.rageT>0?2:1);
+          const dmg = (w.dmg+p.up.d) * (p.rageT>0?2:1);
           for(const e of s.enemies){
-            if(Math.hypot(e.x-p.x,e.z-p.z)<=w.range+0.4) e.hp-=dmg;
+            if(Math.hypot(e.x-p.x,e.z-p.z)<=w.range+0.4){ e.hp-=dmg; e.lh=id; }
           }
           s.events.push({e:'slash', x:p.x, z:p.z});
           p.fireCd=w.cd;
@@ -865,8 +948,8 @@ function simStep(dt){
         const t=nearestEnemy(p.x,p.z,w.range);
         if(t){
           const dx=t.x-p.x, dz=t.z-p.z; const d=Math.hypot(dx,dz)||1;
-          s.arrows.push({ id:s.nextId++, k:w.kind, x:p.x, z:p.z, vx:(dx/d)*w.speed, vz:(dz/d)*w.speed,
-                          life:1.4, dmg:w.dmg*(p.rageT>0?2:1), pierce:!!w.pierce, charm:w.charm||0, hits:{} });
+          s.arrows.push({ id:s.nextId++, k:w.kind, x:p.x, z:p.z, vx:(dx/d)*w.speed, vz:(dz/d)*w.speed, o:id,
+                          life:1.4, dmg:(w.dmg+p.up.d)*(p.rageT>0?2:1), pierce:!!w.pierce, charm:w.charm||0, hits:{} });
           p.fireCd=w.cd;
         }
       }
@@ -882,7 +965,7 @@ function simStep(dt){
           for(const e of s.enemies){ if(e.type!=='boss' && Math.hypot(e.x-p.x,e.z-p.z)<10){ e.charmT=4; n++; } }
           s.events.push({e:'charm', x:p.x, z:p.z});
         } else if(p.char==='antipas'){
-          s.turrets.push({ id:s.nextId++, x:p.x, z:p.z, t:12, cd:0 });
+          s.turrets.push({ id:s.nextId++, x:p.x, z:p.z, t:12, cd:0, o:id });
           s.events.push({e:'turret', x:p.x, z:p.z});
         } else {
           p.rageT=5;
@@ -894,7 +977,16 @@ function simStep(dt){
     /* achats à la boutique 🛒 */
     if(p.buildCd>0) p.buildCd-=dt;
     if(p.inBuy){ const key=p.inBuy; p.inBuy=null;
-      const item=SHOP[key];
+      /* améliorations personnelles */
+      if(UPG[key]){
+        const cfg=UPG[key], lvl=p.up[cfg.key], price=upgPrice(cfg,lvl);
+        if(p.buildCd<=0 && lvl<cfg.max && s.coins>=price){
+          s.coins-=price; p.up[cfg.key]++; p.buildCd=BUILD_CD;
+          if(key==='uphp') p.hp=Math.min(pMax(p), p.hp+25);
+          s.events.push({e:'upgrade'});
+        }
+      }
+      else { const item=SHOP[key];
       if(item && p.buildCd<=0 && s.coins>=item.cost && item.can(s)){
         s.coins-=item.cost; p.buildCd=BUILD_CD;
         const dx=Math.sin(p.ang), dz=Math.cos(p.ang);
@@ -907,16 +999,17 @@ function simStep(dt){
           s.walls.push({ id:s.nextId++, x:fx, z:fz, a:horiz, hp:RAMPART_HP, t:1 });
           s.events.push({e:'wall', x:fx, z:fz});
         } else if(key==='tower'){
-          s.turrets.push({ id:s.nextId++, x:fx, z:fz, t:9999, cd:0, perm:1 });
+          s.turrets.push({ id:s.nextId++, x:fx, z:fz, t:9999, cd:0, perm:1, o:id });
           s.events.push({e:'tower', x:fx, z:fz});
         } else if(key==='trap'){
-          s.traps.push({ id:s.nextId++, x:fx, z:fz });
+          s.traps.push({ id:s.nextId++, x:fx, z:fz, o:id });
           s.events.push({e:'wall', x:fx, z:fz});
         } else if(key==='heal'){
           s.baseHp=Math.min(BASE_MAXHP, s.baseHp+60);
           s.events.push({e:'heal'});
         }
-      }
+        if(key!=='heal') p.stats.b++; // compte les constructions
+      } }
     }
 
     /* appeler MAMAN */
@@ -928,7 +1021,7 @@ function simStep(dt){
       }
     }
 
-    if(p.hp<CHARS[p.char].maxhp) p.hp=Math.min(CHARS[p.char].maxhp, p.hp+s.D.regen*dt);
+    if(p.hp<pMax(p)) p.hp=Math.min(pMax(p), p.hp+s.D.regen*dt);
   }
 
   /* --- tourelles (gadget d'Antipas + tours de garde) --- */
@@ -939,7 +1032,7 @@ function simStep(dt){
     if(t.cd<=0){
       const e=nearestEnemy(t.x,t.z,t.perm?16:14);
       if(e){ const dx=e.x-t.x,dz=e.z-t.z,d=Math.hypot(dx,dz)||1;
-        s.arrows.push({id:s.nextId++,k:t.perm?'arrow':'laser',x:t.x,z:t.z,vx:dx/d*36,vz:dz/d*36,life:1.0,dmg:3,pierce:false,charm:0,hits:{}});
+        s.arrows.push({id:s.nextId++,k:t.perm?'arrow':'laser',x:t.x,z:t.z,vx:dx/d*36,vz:dz/d*36,life:1.0,dmg:3,pierce:false,charm:0,hits:{},o:t.o});
         t.cd=t.perm?0.75:0.4; }
     }
     if(t.t<=0) s.turrets.splice(i,1);
@@ -953,7 +1046,7 @@ function simStep(dt){
       if(Math.hypot(e.x-tr.x,e.z-tr.z)<1.15){ triggered=true; break; }
     }
     if(triggered){
-      for(const e of s.enemies){ if(Math.hypot(e.x-tr.x,e.z-tr.z)<3.4) e.hp-=12; }
+      for(const e of s.enemies){ if(Math.hypot(e.x-tr.x,e.z-tr.z)<3.4){ e.hp-=12; e.lh=tr.o; } }
       s.events.push({e:'boom', x:tr.x, z:tr.z});
       s.traps.splice(i,1);
     }
@@ -967,7 +1060,7 @@ function simStep(dt){
     for(const e of s.enemies){
       if(a.hits[e.id]) continue;
       if(Math.hypot(e.x-a.x,e.z-a.z) < 0.95){
-        e.hp-=a.dmg; a.hits[e.id]=1;
+        e.hp-=a.dmg; a.hits[e.id]=1; if(a.o!==undefined) e.lh=a.o;
         if(a.charm && e.type!=='boss' && Math.random()<a.charm){ e.charmT=Math.max(e.charmT||0,1.6); s.events.push({e:'hearts', x:e.x, z:e.z}); }
         if(!a.pierce){ done=true; }
         break;
@@ -1047,11 +1140,15 @@ function simStep(dt){
   if(s.phase==='wave' && s.toSpawn===0 && s.enemies.length===0 && !s.maman){
     s.phase='prep'; s.phaseT=5; s.events.push({e:'cleared', n:s.wave});
   }
-  if(s.baseHp<=0){ s.baseHp=0; s.phase='over'; s.events.push({e:'over', wave:s.wave, score:s.score}); }
+  if(s.baseHp<=0){ s.baseHp=0; s.phase='over';
+    const stats=Object.values(s.players).map(p=>({n:p.name, ch:p.char, k:p.stats.k, b:p.stats.b}));
+    s.events.push({e:'over', wave:s.wave, score:s.score, stats}); }
 }
 
 function killEnemy(i){
   const e=sim.enemies[i]; const def=ENEMY[e.type];
+  const killer = e.lh!==undefined? sim.players[e.lh] : null;
+  if(killer) killer.stats.k += (e.type==='boss'?5:1);
   sim.score+= e.type==='boss'?10:1; sim.coins+=def.reward;
   sim.events.push({e:'pop', x:e.x, z:e.z});
   if(e.type==='boss') sim.events.push({e:'bossdead', x:e.x, z:e.z});
@@ -1102,8 +1199,8 @@ function buildSnapshot(){
   const s=sim;
   const players={};
   for(const id in s.players){ const p=s.players[id]; const ch=CHARS[p.char];
-    players[id]={x:round1(p.x),z:round1(p.z),hp:Math.round(p.hp/ch.maxhp*100),ch:p.char,n:p.name,a:round2(p.ang),
-                 al:p.alive?1:0, ac:round2(Math.max(0,p.abCd)/ch.abCd), rg:p.rageT>0?1:0}; }
+    players[id]={x:round1(p.x),z:round1(p.z),hp:Math.round(p.hp/pMax(p)*100),ch:p.char,n:p.name,a:round2(p.ang),
+                 al:p.alive?1:0, ac:round2(Math.max(0,p.abCd)/ch.abCd), rg:p.rageT>0?1:0, u:p.up}; }
   return {
     players,
     enemies: s.enemies.map(e=>({i:e.id,t:e.type,x:round1(e.x),z:round1(e.z),a:round2(e.ang),c:e.charmT>0?1:0,f:(e.expT!==undefined&&e.expT<1)?1:0})),
@@ -1155,6 +1252,15 @@ function loop(t){
 
 /* ===================== RENDU ===================== */
 function renderScene(dt){
+  /* 🌙 cycle jour/nuit : la nuit tombe pendant les vagues */
+  const targetNight = (snap && running && snap.phase==='wave') ? 1 : 0;
+  dayMix += (targetNight-dayMix)*Math.min(1, dt*0.4);
+  const sky = lerpHex(0x9fd4ee, 0x18203d, dayMix);
+  scene.background.setHex(sky);
+  scene.fog.color.setHex(sky);
+  if(ambLight) ambLight.intensity = 0.55 - 0.28*dayMix;
+  if(sunLight) sunLight.intensity = 0.7 - 0.4*dayMix;
+
   if(agaposMesh && agaposMesh.userData.head){
     // Agapos regarde autour de lui et sautille, tout mignon
     agaposMesh.userData.head.rotation.y = Math.sin(lastT*0.0012)*0.5;
@@ -1195,10 +1301,9 @@ function renderScene(dt){
     } else if(m.userData.heart){ m.userData.heart.visible=false; }
     // creeper qui va exploser : pulsation
     if(e.f===1){ const s=1+Math.sin(lastT*0.03)*0.12; m.scale.set(s,s,s); } else m.scale.set(1,1,1);
-    // ailes du boss qui battent
-    if(e.t==='boss' && m.userData.wings){
-      const fl=Math.sin(lastT*0.008)*0.45;
-      m.userData.wings[0].rotation.z=fl; m.userData.wings[1].rotation.z=-fl;
+    // mâchoire du crocodile qui claque
+    if(e.t==='boss' && m.userData.jaw){
+      m.userData.jaw.rotation.x = 0.15+Math.abs(Math.sin(lastT*0.004))*0.4;
     }
   }
   for(const id in meshes.enemies){ if(!seenE[id]){ scene.remove(meshes.enemies[id]); disposeMesh(meshes.enemies[id]); delete meshes.enemies[id]; } }
@@ -1314,6 +1419,20 @@ const SND = {
   agapos:()=>{ tone(880,0.1,'sine',0.12); tone(1318,0.18,'sine',0.12,null,0.11); },
 };
 
+/* ===================== MUSIQUE DE FOND 🎶 ===================== */
+let musicTimer=null, mstep=0;
+const MSCALE=[220,262,294,330,392,440,523];         // gamme pentatonique chaleureuse
+const MPAT=[0,-1,2,4,-1,4,2,-1,5,-1,4,2,0,-1,1,-1]; // motif 16 pas
+function musicTick(){
+  if(muted || !AC) return;
+  if(mstep%4===0) tone(mstep%8===0?110:87.3, 0.34,'sine',0.055);           // basse
+  const i=MPAT[mstep%16];
+  if(i>=0) tone(MSCALE[i]*(dayMix>0.5?0.75:1), 0.22,'triangle',0.035);     // mélodie (plus grave la nuit)
+  if(mstep%16===12) tone(660,0.05,'square',0.02);                           // petite percussion
+  mstep++;
+}
+function startMusic(){ if(!musicTimer) musicTimer=setInterval(musicTick, 265); }
+
 /* ===================== RECORD 🏆 ===================== */
 function bestLoad(){ try{ return JSON.parse(localStorage.getItem('iamaBest'))||null; }catch(e){ return null; } }
 function bestSave(b){ try{ localStorage.setItem('iamaBest', JSON.stringify(b)); }catch(e){} }
@@ -1342,10 +1461,11 @@ function handleEvents(evs){
     else if(ev.e==='agapos') { showBanner('🥺 BOUILLE D\'AMOUR !', '#ffd54f'); spawnRing(0,0,0xffd54f); spawnAura(0,0,0xff4d88); SND.agapos(); }
     else if(ev.e==='maman') { showBanner('👩‍🍳 MAMAN ARRIVE !', '#f48fb1'); SND.maman(); }
     else if(ev.e==='mamanSweep') { showBanner('🧹 TOUT LE MONDE DEHORS !', '#f48fb1'); SND.boom(); }
-    else if(ev.e==='boss') { showBanner('🐉 UN BOSS APPROCHE !', '#d05ce3'); SND.boss(); }
-    else if(ev.e==='bossdead') { showBanner('🏆 BOSS VAINCU ! +20🪙', '#ffd54f'); SND.bossdead(); }
+    else if(ev.e==='boss') { showBanner('🐊 UN CROCO GÉANT SORT DU NIL !', '#7cb342'); SND.boss(); }
+    else if(ev.e==='bossdead') { showBanner('🏆 CROCO VAINCU ! +20🪙', '#ffd54f'); SND.bossdead(); }
+    else if(ev.e==='upgrade') { showBanner('⚔️ AMÉLIORATION !', '#90caf9'); SND.heal(); }
     else if(ev.e==='down') SND.down();
-    else if(ev.e==='over') triggerOver(ev.wave, ev.score);
+    else if(ev.e==='over') triggerOver(ev.wave, ev.score, ev.stats);
   }
 }
 function clientEvents(s){ handleEvents(s.ev); }
@@ -1401,6 +1521,7 @@ function stepParticles(dt){
   }
 }
 let bannerTimer=null;
+let lastMyHp=null, lastMyAl=null;
 function showBanner(text,color){
   const b=document.getElementById('banner');
   b.textContent=text; b.style.color=color; b.style.opacity='1';
@@ -1445,12 +1566,30 @@ function updateHUD(){
     document.getElementById('momBtn').classList.toggle('locked', snap.coins<MOM_COST || !!snap.maman);
     document.getElementById('shopBtn').classList.toggle('locked', snap.coins<5);
   }
+  // vibrations quand on prend un coup 📳
+  if(me){
+    if(lastMyHp!==null && me.al===1 && me.hp<lastMyHp-1 && navigator.vibrate) navigator.vibrate(60);
+    if(lastMyAl===1 && me.al===0 && navigator.vibrate) navigator.vibrate([120,60,240]);
+    lastMyHp=me.hp; lastMyAl=me.al;
+  }
   // boutique
   const shopEl=document.getElementById('shop');
   if(!shopEl.classList.contains('hidden')){
     document.getElementById('shopCoins').textContent='🪙 '+snap.coins;
     document.querySelectorAll('.shop-item').forEach(el=>{
-      el.classList.toggle('locked', snap.coins < +el.dataset.cost);
+      const key=el.dataset.key;
+      if(UPG[key]){ // améliorations perso : prix croissant + niveau
+        const cfg=UPG[key];
+        const lvl=(me&&me.u)? me.u[cfg.key]:0;
+        const maxed=lvl>=cfg.max;
+        const price=upgPrice(cfg,lvl);
+        el.querySelector('.sc').textContent = maxed? 'MAX' : price+'🪙';
+        const baseNames={updmg:'Force +1',upspd:'Vitesse +12%',uphp:'Cœur d\'or +25 PV'};
+        el.querySelector('.sn').textContent = baseNames[key]+' (Nv '+lvl+'/'+cfg.max+')';
+        el.classList.toggle('locked', maxed || snap.coins<price);
+      } else {
+        el.classList.toggle('locked', snap.coins < +el.dataset.cost);
+      }
     });
   }
 }
@@ -1524,7 +1663,7 @@ function bindTap(id, fn){
 }
 
 /* ===================== RÉSEAU ===================== */
-const VERSION = 8;              // ⚠️ tous les téléphones doivent avoir la même !
+const VERSION = 9;              // ⚠️ tous les téléphones doivent avoir la même !
 const PREFIX = 'iamafr-';       // préfixe STABLE (ne change plus entre versions)
 function genCode(){
   const letters='ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -1714,9 +1853,23 @@ function beginPlay(){
   document.getElementById('controls').classList.remove('hidden');
   if(ROLE==='host'){ startWaves(); }
 }
-function triggerOver(wave,score){
+function triggerOver(wave,score,stats){
   running=false;
   SND.over();
+  if(navigator.vibrate) navigator.vibrate([120,60,320]);
+  // stats de la fratrie : qui est le MVP ? 👑
+  const ul=document.getElementById('overStats'); ul.innerHTML='';
+  if(stats && stats.length){
+    const maxK=Math.max.apply(null, stats.map(x=>x.k));
+    stats.slice().sort((a,b)=>b.k-a.k).forEach(st=>{
+      const ch=CHARS[st.ch]||CHARS.israel;
+      const li=document.createElement('li');
+      li.innerHTML='<span class="dot" style="background:'+ch.hex+'"></span>'+
+        (st.k===maxK&&maxK>0?'👑 ':'')+ch.emoji+' '+escapeHtml(st.n)+
+        ' — <small>'+st.k+' animaux · '+st.b+' constructions</small>';
+      ul.appendChild(li);
+    });
+  }
   document.getElementById('hud').classList.add('hidden');
   document.getElementById('controls').classList.add('hidden');
   document.getElementById('scrOver').querySelector('h1').textContent='💥 GAME OVER';
@@ -1761,6 +1914,7 @@ function bindUI(){
     if(ROLE==='host'){
       const keep=sim.players; sim=newSim(); sim.players=keep;
       for(const id in sim.players){ const p=sim.players[id]; const ch=CHARS[p.char];
+        p.up={d:0,s:0,h:0}; p.stats={k:0,b:0};
         p.hp=ch.maxhp; p.alive=true; p.abCd=0; p.fireCd=0; p.rageT=0; p.buildCd=0; }
       broadcast({t:'start'}); beginPlay(); startWaves();
     }
@@ -1777,7 +1931,7 @@ function bindUI(){
     if(!muted) SND.pop();
   });
   // déblocage de l'audio au premier toucher (règle des navigateurs mobiles)
-  const unlock=()=>{ ac(); };
+  const unlock=()=>{ ac(); startMusic(); };
   document.addEventListener('touchstart', unlock, {once:true});
   document.addEventListener('mousedown', unlock, {once:true});
 }
