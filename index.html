@@ -154,7 +154,7 @@
   <div id="joyZone"></div>
   <div id="joyBase"></div>
   <div id="joyKnob"></div>
-  <div class="actBtn" id="momBtn"><span class="ic">👩‍🍳</span><span class="lb">MAMAN 30🪙</span><div class="cd" id="momCd"></div></div>
+  <div class="actBtn" id="momBtn"><span class="ic">👩‍🍳</span><span class="lb">MAMAN 45🪙</span><div class="cd" id="momCd"></div></div>
   <div class="actBtn" id="shopBtn"><span class="ic">🛒</span><span class="lb">BOUTIQUE</span></div>
   <div class="actBtn" id="abBtn"><span class="ic" id="abIc">✨</span><span class="lb" id="abLb">CAPACITÉ</span><div class="cd" id="abCd"></div></div>
   <div id="hint">Joystick = bouger · L'attaque est automatique !</div>
@@ -269,7 +269,7 @@ const PLAYER_SPEED = 7.2;
 const BASE_MAXHP = 200;
 const RESPAWN_TIME = 6;
 const WALL_HP = 40, RAMPART_HP = 120, STRUCT_MAX = 12, BUILD_CD = 0.8;
-const MOM_COST = 30;
+const MOM_COST = 45, MOM_CD = 75; // Maman coûte cher et a besoin de souffler !
 /* Boutique de survie 🛒 */
 const SHOP = {
   wall:    { cost:5,  can:s=>s.walls.length<STRUCT_MAX },
@@ -318,17 +318,17 @@ const CHAR_KEYS = ['israel','antipas','maranatha'];
 
 /* ----- Niveaux de difficulté ----- */
 const DIFFS = {
-  easy:   { count:0.7, speed:0.95, hp:0, regen:3,   bossM:1.0,  label:'😊 Facile' },
-  normal: { count:1.0, speed:1.08, hp:1, regen:1.8, bossM:1.15, label:'😐 Normal' },
-  hard:   { count:1.45, speed:1.22, hp:2, regen:1,  bossM:1.35, label:'💀 Difficile' },
+  easy:   { count:0.7,  speed:0.95, hp:0, regen:3,   bossM:1.0,  label:'😊 Facile' },
+  normal: { count:1.15, speed:1.12, hp:1, regen:1.6, bossM:1.2,  label:'😐 Normal' },
+  hard:   { count:1.7,  speed:1.3,  hp:2, regen:0.8, bossM:1.5,  label:'💀 Difficile' },
 };
 let gameDiff='normal';
 
 const ENEMY = {
-  zombie: { hp:5, speed:2.2, dmg:6, reward:2, target:'base' },
-  creeper:{ hp:4, speed:2.8, dmg:28, reward:3, target:'base', explode:true },
-  spider: { hp:4, speed:4.2, dmg:5, reward:2, target:'player' },
-  boss:   { hp:60, speed:1.5, dmg:15, reward:20, target:'base', boss:true },
+  zombie: { hp:5, speed:2.2, dmg:6, reward:1, target:'base' },
+  creeper:{ hp:4, speed:2.8, dmg:28, reward:2, target:'base', explode:true },
+  spider: { hp:4, speed:4.2, dmg:5, reward:1, target:'player' },
+  boss:   { hp:60, speed:1.5, dmg:15, reward:15, target:'base', boss:true },
 };
 
 /* ===================== ÉTAT GLOBAL ===================== */
@@ -825,6 +825,7 @@ function makeTurretMesh(perm){
 function newSim(){
   return {
     D: DIFFS[gameDiff]||DIFFS.normal,
+    momCd:0,
     phase:'prep', phaseT:3, wave:0, score:0, coins:0,
     baseHp:BASE_MAXHP, agaposCd:8,
     players:{}, enemies:[], arrows:[], walls:[], turrets:[], traps:[],
@@ -877,6 +878,7 @@ function simStep(dt){
   }
 
   /* --- MAMAN 👩‍🍳 --- */
+  if(s.momCd>0) s.momCd-=dt;
   if(s.maman){
     const m=s.maman;
     m.t-=dt;
@@ -1014,8 +1016,9 @@ function simStep(dt){
 
     /* appeler MAMAN */
     if(p.inMom){ p.inMom=false;
-      if(!s.maman && s.coins>=MOM_COST && s.enemies.length>0){
+      if(!s.maman && s.momCd<=0 && s.coins>=MOM_COST && s.enemies.length>0){
         s.coins-=MOM_COST;
+        s.momCd=MOM_CD; // Maman retourne à ses occupations un moment
         s.maman={ t:3.0, sx:0, sz:HALF+2, x:0, z:HALF+2 };
         s.events.push({e:'maman'});
       }
@@ -1209,6 +1212,7 @@ function buildSnapshot(){
     turrets: s.turrets.map(t=>({i:t.id,x:round1(t.x),z:round1(t.z),k:t.perm?1:0})),
     traps: s.traps.map(t=>({i:t.id,x:round1(t.x),z:round1(t.z)})),
     maman: s.maman? {x:round1(s.maman.x), z:round1(s.maman.z)} : null,
+    mc: round2(Math.max(0,s.momCd)/MOM_CD),
     boss: (()=>{ const b=s.enemies.find(e=>e.type==='boss'); return b? Math.round(b.hp/b.maxhp*100) : null; })(),
     base:Math.round(s.baseHp), wave:s.wave, score:s.score, coins:s.coins,
     phase:s.phase, phaseT:Math.max(0,Math.round(s.phaseT)), ev:s.events.slice(),
@@ -1462,7 +1466,7 @@ function handleEvents(evs){
     else if(ev.e==='maman') { showBanner('👩‍🍳 MAMAN ARRIVE !', '#f48fb1'); SND.maman(); }
     else if(ev.e==='mamanSweep') { showBanner('🧹 TOUT LE MONDE DEHORS !', '#f48fb1'); SND.boom(); }
     else if(ev.e==='boss') { showBanner('🐊 UN CROCO GÉANT SORT DU NIL !', '#7cb342'); SND.boss(); }
-    else if(ev.e==='bossdead') { showBanner('🏆 CROCO VAINCU ! +20🪙', '#ffd54f'); SND.bossdead(); }
+    else if(ev.e==='bossdead') { showBanner('🏆 CROCO VAINCU ! +15🪙', '#ffd54f'); SND.bossdead(); }
     else if(ev.e==='upgrade') { showBanner('⚔️ AMÉLIORATION !', '#90caf9'); SND.heal(); }
     else if(ev.e==='down') SND.down();
     else if(ev.e==='over') triggerOver(ev.wave, ev.score, ev.stats);
@@ -1563,7 +1567,8 @@ function updateHUD(){
   const me=snap.players[myId];
   if(me){
     document.getElementById('abCd').style.height=(me.ac*100)+'%';
-    document.getElementById('momBtn').classList.toggle('locked', snap.coins<MOM_COST || !!snap.maman);
+    document.getElementById('momCd').style.height=((snap.mc||0)*100)+'%';
+    document.getElementById('momBtn').classList.toggle('locked', snap.coins<MOM_COST || !!snap.maman || (snap.mc||0)>0);
     document.getElementById('shopBtn').classList.toggle('locked', snap.coins<5);
   }
   // vibrations quand on prend un coup 📳
@@ -1663,7 +1668,7 @@ function bindTap(id, fn){
 }
 
 /* ===================== RÉSEAU ===================== */
-const VERSION = 9;              // ⚠️ tous les téléphones doivent avoir la même !
+const VERSION = 10;              // ⚠️ tous les téléphones doivent avoir la même !
 const PREFIX = 'iamafr-';       // préfixe STABLE (ne change plus entre versions)
 function genCode(){
   const letters='ABCDEFGHJKMNPQRSTUVWXYZ23456789';
