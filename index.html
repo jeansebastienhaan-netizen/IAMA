@@ -189,6 +189,16 @@
   <button class="btn gray small" id="btnBack1">Retour</button>
 </div>
 
+<!-- ===== ÉCRAN : Difficulté ===== -->
+<div id="scrDiff" class="screen hidden">
+  <h1 style="font-size:6.6vw">Difficulté ?</h1>
+  <p class="tag">L'hôte choisit pour toute l'équipe</p>
+  <button class="btn green" data-diff="easy">😊 Facile<br><small style="font-weight:normal">Pour apprendre tranquille</small></button>
+  <button class="btn blue" data-diff="normal">😐 Normal<br><small style="font-weight:normal">Le vrai défi de la fratrie</small></button>
+  <button class="btn" data-diff="hard" style="background:#e57373">💀 Difficile<br><small style="font-weight:normal">Bonne chance…</small></button>
+  <button class="btn gray small" id="btnBackDiff">Retour</button>
+</div>
+
 <!-- ===== ÉCRAN : Choix du personnage ===== -->
 <div id="scrChar" class="screen hidden">
   <h1 style="font-size:6.6vw">Qui es-tu ?</h1>
@@ -292,6 +302,14 @@ const CHARS = {
   },
 };
 const CHAR_KEYS = ['israel','antipas','maranatha'];
+
+/* ----- Niveaux de difficulté ----- */
+const DIFFS = {
+  easy:   { count:0.7, speed:0.95, hp:0, regen:3,   bossM:1.0,  label:'😊 Facile' },
+  normal: { count:1.0, speed:1.08, hp:1, regen:1.8, bossM:1.15, label:'😐 Normal' },
+  hard:   { count:1.45, speed:1.22, hp:2, regen:1,  bossM:1.35, label:'💀 Difficile' },
+};
+let gameDiff='normal';
 
 const ENEMY = {
   zombie: { hp:5, speed:2.2, dmg:6, reward:2, target:'base' },
@@ -724,6 +742,7 @@ function makeTurretMesh(perm){
 /* ===================== SIMULATION (HÔTE) ===================== */
 function newSim(){
   return {
+    D: DIFFS[gameDiff]||DIFFS.normal,
     phase:'prep', phaseT:3, wave:0, score:0, coins:0,
     baseHp:BASE_MAXHP, agaposCd:8,
     players:{}, enemies:[], arrows:[], walls:[], turrets:[], traps:[],
@@ -754,10 +773,10 @@ function simStep(dt){
     s.phaseT-=dt;
     if(s.phaseT<=0){
       s.wave++;
-      let n = 4 + Math.floor(s.wave*2.2);
+      let n = Math.round((4 + s.wave*2.2) * s.D.count);
       if(s.wave%5===0){ // 🐉 vague de BOSS !
         n = Math.ceil(n*0.6);
-        const bhp = 60 + s.wave*8;
+        const bhp = Math.round((60 + s.wave*8) * s.D.bossM);
         s.enemies.push({ id:s.nextId++, type:'boss', x:0, z:-HALF, hp:bhp, maxhp:bhp, ang:0, charmT:0 });
         s.events.push({e:'boss'});
       }
@@ -769,7 +788,7 @@ function simStep(dt){
   if(s.phase==='wave' && s.toSpawn>0){
     s.spawnT-=dt;
     if(s.spawnT<=0){
-      s.spawnT = Math.max(0.35, 1.2 - s.wave*0.05);
+      s.spawnT = Math.max(0.3, (1.2 - s.wave*0.05) / s.D.count);
       spawnEnemy(); s.toSpawn--;
     }
   }
@@ -909,7 +928,7 @@ function simStep(dt){
       }
     }
 
-    if(p.hp<CHARS[p.char].maxhp) p.hp=Math.min(CHARS[p.char].maxhp, p.hp+3*dt);
+    if(p.hp<CHARS[p.char].maxhp) p.hp=Math.min(CHARS[p.char].maxhp, p.hp+s.D.regen*dt);
   }
 
   /* --- tourelles (gadget d'Antipas + tours de garde) --- */
@@ -974,7 +993,8 @@ function simStep(dt){
     e.ang=Math.atan2(dx,dz);
 
     /* mur sur le chemin ? */
-    const nx=e.x+(dx/d)*def.speed*dt, nz=e.z+(dz/d)*def.speed*dt;
+    const spd=def.speed*s.D.speed;
+    const nx=e.x+(dx/d)*spd*dt, nz=e.z+(dz/d)*spd*dt;
     const wall=wallAt(nx,nz);
     if(wall){
       // le mur bloque : on l'attaque
@@ -1059,7 +1079,7 @@ function spawnEnemy(){
   else if(r<0.7) type='zombie';
   else type=(s.wave>=3?'creeper':'zombie');
   const def=ENEMY[type];
-  s.enemies.push({ id:s.nextId++, type, x, z, hp:def.hp+Math.floor(s.wave/3), ang:0, charmT:0 });
+  s.enemies.push({ id:s.nextId++, type, x, z, hp:def.hp+Math.floor(s.wave/2)+s.D.hp, ang:0, charmT:0 });
 }
 function damagePlayer(p,amt){
   if(p.rageT>0) return; // invincible pendant le Cri de Courage
@@ -1504,7 +1524,7 @@ function bindTap(id, fn){
 }
 
 /* ===================== RÉSEAU ===================== */
-const VERSION = 7;              // ⚠️ tous les téléphones doivent avoir la même !
+const VERSION = 8;              // ⚠️ tous les téléphones doivent avoir la même !
 const PREFIX = 'iamafr-';       // préfixe STABLE (ne change plus entre versions)
 function genCode(){
   const letters='ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -1552,7 +1572,7 @@ function onHostData(conn,d){
   if(d.t==='hello'){
     if(Object.keys(sim.players).length>=3){ conn.send({t:'full'}); return; }
     conns[conn.peer]=conn;
-    conn.send({t:'chars', taken:takenChars(), code:roomCode, v:VERSION});
+    conn.send({t:'chars', taken:takenChars(), code:roomCode, v:VERSION, diff:gameDiff});
   } else if(d.t==='pick'){
     if(takenChars().includes(d.char)){ conn.send({t:'chars', taken:takenChars(), code:roomCode, v:VERSION, retry:1}); return; }
     if(Object.keys(sim.players).length>=3){ conn.send({t:'full'}); return; }
@@ -1609,6 +1629,7 @@ function onClientData(d){
       return;
     }
     roomCode=d.code; ROLE='client';
+    if(d.diff) gameDiff=d.diff;
     showCharSelect(d.taken, !!d.retry);
   }
   else if(d.t==='welcome'){ myId=d.id; myChar=d.char; myName=CHARS[d.char].name; roomCode=d.code;
@@ -1657,7 +1678,8 @@ function pickChar(key){
 }
 function showLobby(isHost){
   show('scrLobby');
-  document.getElementById('lobbyRole').textContent = isHost? '👑 Tu es l\'hôte — '+CHARS[myChar].emoji+' '+myName : CHARS[myChar].emoji+' '+myName;
+  const diffTxt = ' · '+(DIFFS[gameDiff]||DIFFS.normal).label;
+  document.getElementById('lobbyRole').textContent = (isHost? '👑 Tu es l\'hôte — '+CHARS[myChar].emoji+' '+myName : CHARS[myChar].emoji+' '+myName)+diffTxt;
   document.getElementById('lobbyCode').textContent = roomCode;
   document.getElementById('btnStart').classList.toggle('hidden', !isHost);
   document.getElementById('lobbyWait').classList.toggle('hidden', isHost);
@@ -1715,8 +1737,12 @@ function triggerOver(wave,score){
 /* ===================== UI ===================== */
 function bindUI(){
   const g=id=>document.getElementById(id);
-  g('btnCreate').onclick=()=>{ charMode='host'; showCharSelect([], false); };
-  g('btnSolo').onclick=()=>{ charMode='solo'; showCharSelect([], false); };
+  g('btnCreate').onclick=()=>{ charMode='host'; show('scrDiff'); };
+  g('btnSolo').onclick=()=>{ charMode='solo'; show('scrDiff'); };
+  g('btnBackDiff').onclick=()=>show('scrMenu');
+  document.querySelectorAll('#scrDiff [data-diff]').forEach(b=>{
+    b.onclick=()=>{ gameDiff=b.dataset.diff; showCharSelect([], false); };
+  });
   g('btnJoin').onclick=()=>show('scrJoin');
   g('btnBack1').onclick=()=>show('scrMenu');
   g('btnBackChar').onclick=()=>{ if(charMode==='client'){ location.reload(); } else show('scrMenu'); };
