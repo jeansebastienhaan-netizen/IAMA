@@ -1668,7 +1668,7 @@ function bindTap(id, fn){
 }
 
 /* ===================== RÉSEAU ===================== */
-const VERSION = 10;              // ⚠️ tous les téléphones doivent avoir la même !
+const VERSION = 11;              // ⚠️ tous les téléphones doivent avoir la même !
 const PREFIX = 'iamafr-';       // préfixe STABLE (ne change plus entre versions)
 function genCode(){
   const letters='ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -1713,6 +1713,7 @@ function hostCreate(){
   setTimeout(()=>{ if(!opened){ try{peer.destroy();}catch(e){} showNetError("Le serveur de jeu ne répond pas 📡\nVérifie ta connexion internet et réessaie dans quelques secondes."); } }, 15000);
 }
 function onHostData(conn,d){
+  conn.lastSeen=performance.now();
   if(d.t==='hello'){
     if(Object.keys(sim.players).length>=3){ conn.send({t:'full'}); return; }
     conns[conn.peer]=conn;
@@ -1782,7 +1783,7 @@ function onClientData(d){
   else if(d.t==='full'){ showJoinError("La partie est déjà complète (3 joueurs)."); }
   else if(d.t==='lobby'){ renderLobbyList(d.players); }
   else if(d.t==='start'){ beginPlay(); }
-  else if(d.t==='state'){ snap=d.s; clientEvents(d.s); if(!running) beginPlay(); }
+  else if(d.t==='state'){ snap=d.s; lastStateAt=performance.now(); clientEvents(d.s); if(!running) beginPlay(); }
 }
 
 /* ===================== ÉCRANS ===================== */
@@ -1853,6 +1854,8 @@ function showNetError(m){
 function beginPlay(){
   if(running) return;
   running=true; acc=0; lastT=0; lastNet=0;
+  lastStateAt=performance.now();
+  keepAwake();
   show(null);
   document.getElementById('hud').classList.remove('hidden');
   document.getElementById('controls').classList.remove('hidden');
@@ -1940,6 +1943,73 @@ function bindUI(){
   document.addEventListener('touchstart', unlock, {once:true});
   document.addEventListener('mousedown', unlock, {once:true});
 }
+
+/* ===================== ROBUSTESSE MOBILE ===================== */
+/* Affiche les erreurs à l'écran (pour pouvoir me les rapporter !) */
+function showErrToast(msg){
+  let t=document.getElementById('errToast');
+  if(!t){ t=document.createElement('div'); t.id='errToast';
+    t.style.cssText='position:fixed;left:8px;right:8px;bottom:8px;z-index:99;background:rgba(180,30,30,.92);color:#fff;'+
+      'padding:10px 12px;border-radius:10px;font-size:12px;word-break:break-all;display:none;';
+    document.body.appendChild(t); }
+  t.textContent='⚠️ '+String(msg).slice(0,300);
+  t.style.display='block';
+  clearTimeout(t._h); t._h=setTimeout(()=>{ t.style.display='none'; }, 10000);
+}
+window.addEventListener('error', ev=>showErrToast(ev.message+' ('+(ev.filename||'').split('/').pop()+':'+ev.lineno+')'));
+window.addEventListener('unhandledrejection', ev=>showErrToast('Promesse: '+((ev.reason&&ev.reason.message)||ev.reason)));
+
+/* Écran maintenu allumé pendant la partie (Wake Lock) */
+let wakeLock=null;
+async function keepAwake(){
+  try{
+    if('wakeLock' in navigator && !wakeLock){
+      wakeLock=await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', ()=>{ wakeLock=null; });
+    }
+  }catch(e){}
+}
+
+/* L'hôte continue de simuler même si son appli passe en arrière-plan */
+let hiddenTimer=null, hiddenLast=0;
+document.addEventListener('visibilitychange', ()=>{
+  if(document.hidden){
+    if(ROLE==='host' && running && !hiddenTimer){
+      hiddenLast=performance.now();
+      hiddenTimer=setInterval(()=>{
+        const now=performance.now();
+        let steps=Math.min(20, Math.floor((now-hiddenLast)/TICK));
+        if(steps>0){ hiddenLast+=steps*TICK;
+          while(steps-->0) simStep(TICK/1000);
+          snap=buildSnapshot();
+          broadcast({t:'state', s:snap});
+        }
+      }, 250);
+    }
+  } else {
+    if(hiddenTimer){ clearInterval(hiddenTimer); hiddenTimer=null; lastT=0; acc=0; }
+    if(running) keepAwake();
+  }
+});
+
+/* Client : détecte quand l'hôte ne répond plus */
+let lastStateAt=0;
+setInterval(()=>{
+  if(ROLE==='client' && running && lastStateAt){
+    const silence=performance.now()-lastStateAt;
+    if(silence>20000){ lastStateAt=0; showNetError("Connexion à l'hôte perdue 📡\nL'hôte a peut-être fermé le jeu ou perdu internet."); }
+    else if(silence>4000){ showBanner('⏸️ EN ATTENTE DE L\'HÔTE…', '#ffd54f'); }
+  }
+}, 2000);
+
+/* Hôte : retire les joueurs silencieux (déconnexion non signalée) pour libérer leur place */
+setInterval(()=>{
+  if(ROLE!=='host' || !running) return;
+  const now=performance.now();
+  for(const k in conns){ const c=conns[k];
+    if(c.pid && c.lastSeen && now-c.lastSeen>10000){ try{c.close();}catch(e){} removeClient(c); }
+  }
+}, 3000);
 
 /* ===================== UTILS ===================== */
 function clamp(v,a,b){ return v<a?a:v>b?b:v; }
